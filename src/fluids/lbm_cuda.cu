@@ -131,7 +131,9 @@ __global__ void kernel_collide_stream(
     return;
   }
 
-  // 1. Compute Macroscopic (on the fly to save bandwidth)
+  // 1. Compute Macroscopic (on the fly - DO NOT write to global memory here)
+  // The separate kernel_compute_macroscopic will write the t+1 state after
+  // streaming
   double r = 0.0, vx = 0.0, vy = 0.0, vz = 0.0;
 #pragma unroll
   for (int q = 0; q < 19; ++q) {
@@ -142,16 +144,12 @@ __global__ void kernel_collide_stream(
     vz += d_cz[q] * fq;
   }
 
-  // Store macros
-  rho[i] = r;
+  // Normalize velocity (keep in registers only)
   if (r > 1e-10) {
     double inv = 1.0 / r;
     vx *= inv;
     vy *= inv;
     vz *= inv;
-    ux[i] = vx;
-    uy[i] = vy;
-    uz[i] = vz;
   }
 
   double u2 = vx * vx + vy * vy + vz * vz;
