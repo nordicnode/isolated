@@ -1,0 +1,56 @@
+[
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/biology/blood_chemistry.cpp.o -c /home/mikey/Desktop/dev/isolated/src/biology/blood_chemistry.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/biology/blood_chemistry.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/biology/blood_chemistry.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/biology/circulation.cpp.o -c /home/mikey/Desktop/dev/isolated/src/biology/circulation.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/biology/circulation.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/biology/circulation.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/fluids/lbm_engine.cpp.o -c /home/mikey/Desktop/dev/isolated/src/fluids/lbm_engine.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/fluids/lbm_engine.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/fluids/lbm_engine.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/fluids/multiphase.cpp.o -c /home/mikey/Desktop/dev/isolated/src/fluids/multiphase.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/fluids/multiphase.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/fluids/multiphase.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/thermal/heat_engine.cpp.o -c /home/mikey/Desktop/dev/isolated/src/thermal/heat_engine.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/thermal/heat_engine.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/thermal/heat_engine.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated_lib.dir/src/worldgen/worldgen.cpp.o -c /home/mikey/Desktop/dev/isolated/src/worldgen/worldgen.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/src/worldgen/worldgen.cpp",
+  "output": "CMakeFiles/isolated_lib.dir/src/worldgen/worldgen.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/isolated.dir/main.cpp.o -c /home/mikey/Desktop/dev/isolated/main.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/main.cpp",
+  "output": "CMakeFiles/isolated.dir/main.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build/tests",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/test_basic.dir/test_basic.cpp.o -c /home/mikey/Desktop/dev/isolated/tests/test_basic.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/tests/test_basic.cpp",
+  "output": "tests/CMakeFiles/test_basic.dir/test_basic.cpp.o"
+},
+{
+  "directory": "/home/mikey/Desktop/dev/isolated/build/tests",
+  "command": "/usr/bin/c++ -DFMT_SHARED -I/home/mikey/Desktop/dev/isolated/include -isystem /usr/include/eigen3  -O3 -march=native -flto -mavx2 -O3 -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp -o CMakeFiles/benchmark.dir/benchmark.cpp.o -c /home/mikey/Desktop/dev/isolated/tests/benchmark.cpp",
+  "file": "/home/mikey/Desktop/dev/isolated/tests/benchmark.cpp",
+  "output": "tests/CMakeFiles/benchmark.dir/benchmark.cpp.o"
+}
+]
