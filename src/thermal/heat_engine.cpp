@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <isolated/thermal/heat_engine.hpp>
 #include <omp.h>
 
@@ -37,6 +38,10 @@ ThermalEngine::ThermalEngine(const ThermalConfig &config) : config_(config) {
   // Fluid velocity
   fluid_ux_.resize(n_cells_, 0.0);
   fluid_uy_.resize(n_cells_, 0.0);
+
+  // Preallocate temp buffers (avoid heap allocation in hot loops)
+  temp_buffer_.resize(n_cells_, 0.0);
+  temp_buffer2_.resize(n_cells_, 0.0);
 }
 
 void ThermalEngine::step(double dt) {
@@ -53,7 +58,9 @@ void ThermalEngine::step(double dt) {
 }
 
 void ThermalEngine::step_conduction(double dt) {
-  std::vector<double> dT(n_cells_, 0.0);
+  // Reuse preallocated buffer (zero it with memset - faster than std::fill)
+  std::memset(temp_buffer_.data(), 0, n_cells_ * sizeof(double));
+  double *__restrict dT = temp_buffer_.data();
   const double dx2 = config_.dx * config_.dx;
 
 #pragma omp parallel for collapse(3)
@@ -93,7 +100,9 @@ void ThermalEngine::step_conduction(double dt) {
 
 void ThermalEngine::step_radiation(double dt) {
   const double sigma = constants::STEFAN_BOLTZMANN;
-  std::vector<double> dT(n_cells_, 0.0);
+  // Reuse preallocated buffer
+  std::memset(temp_buffer_.data(), 0, n_cells_ * sizeof(double));
+  double *__restrict dT = temp_buffer_.data();
 
 #pragma omp parallel for
   for (size_t i = 0; i < n_cells_; ++i) {
@@ -123,7 +132,9 @@ void ThermalEngine::step_radiation(double dt) {
 }
 
 void ThermalEngine::step_advection(double dt) {
-  std::vector<double> dT(n_cells_, 0.0);
+  // Reuse preallocated buffer
+  std::memset(temp_buffer_.data(), 0, n_cells_ * sizeof(double));
+  double *__restrict dT = temp_buffer_.data();
 
 #pragma omp parallel for collapse(3)
   for (size_t z = 0; z < config_.nz; ++z) {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Isolated VERSION 1.0 LANGUAGES CXX)
+project(Isolated VERSION 1.0 LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +17,13 @@ if(COMPILER_SUPPORTS_AVX2)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
 endif()
 
+# CUDA properties
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES 75) # Turing (GTX 1660 Super)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -use_fast_math")
+endif()
+
 # OpenMP
 find_package(OpenMP REQUIRED)
 
@@ -30,7 +37,7 @@ find_package(fmt REQUIRED)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Source files
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.cu")
 
 # Create static library for reuse
 add_library(isolated_lib STATIC ${SOURCES})

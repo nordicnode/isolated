@@ -109,6 +109,69 @@ int main() {
     print_result(results.back());
   }
 
+  // LBM GPU Engine (100x100)
+  {
+    fluids::LBMConfig config;
+    config.nx = 100;
+    config.ny = 100;
+    config.collision_mode = fluids::CollisionMode::MRT;
+    config.use_gpu = true;
+    fluids::LBMEngine lbm(config);
+
+    // Warmup GPU
+    lbm.step(dt);
+
+    results.push_back(
+        run_benchmark("LBM 100x100 [GPU]", PHYSICS_ITERS * 10, [&]() {
+          lbm.step(dt);
+          lbm.wait();
+        }));
+    print_result(results.back());
+  }
+
+  // LBM GPU Engine (500x500)
+  {
+    fluids::LBMConfig config;
+    config.nx = 500;
+    config.ny = 500;
+    // GPU scales better, use larger grid to show benefit
+    config.collision_mode = fluids::CollisionMode::MRT;
+    config.use_gpu = true;
+    fluids::LBMEngine lbm(config);
+
+    // Warmup
+    lbm.step(dt);
+
+    results.push_back(run_benchmark("LBM 500x500 [GPU]", PHYSICS_ITERS, [&]() {
+      lbm.step(dt);
+      lbm.wait();
+    }));
+    print_result(results.back());
+  }
+
+  // Sparse Readback Benchmark
+  {
+    fluids::LBMConfig config;
+    config.nx = 500;
+    config.ny = 500;
+    config.use_gpu = true;
+    fluids::LBMEngine lbm(config);
+    lbm.step(dt); // Initialize GPU buffers
+    lbm.wait();
+
+    // Simulate 100 agent positions
+    std::vector<std::pair<size_t, size_t>> agent_pos;
+    for (int i = 0; i < 100; ++i) {
+      agent_pos.push_back({50 + i, 250});
+    }
+    std::vector<fluids::cuda::FluidSample> samples;
+
+    results.push_back(
+        run_benchmark("Sparse Readback (100 agents)", PHYSICS_ITERS * 10,
+                      [&]() { lbm.sample_at_positions(agent_pos, samples); }));
+    print_result(results.back());
+  }
+
   // Thermal Engine
   {
     thermal::ThermalConfig config;

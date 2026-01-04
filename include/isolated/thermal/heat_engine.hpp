@@ -11,7 +11,6 @@
  * - Enthalpy-based phase changes
  */
 
-#include <array>
 #include <cstdint>
 #include <string>
 #include <tuple>
@@ -97,15 +96,24 @@ private:
   // Heat sources
   std::vector<double> heat_sources_;
   std::vector<double> decay_heat_;
-  std::unordered_map<std::tuple<size_t, size_t, size_t>, double,
-                     decltype([](const auto &t) {
-                       return std::get<0>(t) ^ (std::get<1>(t) << 16) ^
-                              (std::get<2>(t) << 32);
-                     })>
+
+  // Hash functor for coordinate tuples (defined as proper struct to avoid ODR
+  // issues)
+  struct CoordHash {
+    size_t
+    operator()(const std::tuple<size_t, size_t, size_t> &t) const noexcept {
+      return std::get<0>(t) ^ (std::get<1>(t) << 16) ^ (std::get<2>(t) << 32);
+    }
+  };
+  std::unordered_map<std::tuple<size_t, size_t, size_t>, double, CoordHash>
       equipment_heat_;
 
   // Fluid velocity for convection
   std::vector<double> fluid_ux_, fluid_uy_;
+
+  // Reusable temp buffers (avoid heap allocation in hot loops)
+  std::vector<double> temp_buffer_;
+  std::vector<double> temp_buffer2_;
 
   // Internal methods
   size_t idx(size_t x, size_t y, size_t z) const;

@@ -20,6 +20,7 @@
 
 #include <isolated/core/constants.hpp>
 #include <isolated/fluids/lattice.hpp>
+#include <isolated/fluids/lbm_cuda.cuh>
 
 namespace isolated {
 namespace fluids {
@@ -57,6 +58,7 @@ struct LBMConfig {
   double gravity = 0.0;
   double dx = 1.0;
   double dt = 1.0;
+  bool use_gpu = false;
 };
 
 /**
@@ -88,9 +90,24 @@ public:
   double compute_cfl() const;
   bool is_stable() const;
 
+  // GPU Synchronization
+  void synchronize_to_host();
+  void synchronize_to_device();
+  void wait(); // Block until GPU is finished
+
+  // Sparse readback for agents (avoids full GPU->CPU copy)
+  void
+  sample_at_positions(const std::vector<std::pair<size_t, size_t>> &positions,
+                      std::vector<cuda::FluidSample> &out);
+
 private:
   LBMConfig config_;
   size_t n_cells_;
+
+  // GPU Data
+  cuda::LBMDeviceBuffers gpu_buffers_;
+  cuda::SparseReadbackBuffers sparse_buffers_;
+  bool gpu_constant_uploaded_ = false;
 
   // Distribution functions (SoA layout for cache efficiency)
   std::array<std::vector<double>, 19> f_;     // Current distributions

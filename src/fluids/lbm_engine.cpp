@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <isolated/fluids/lbm_cuda.cuh>
 #include <isolated/fluids/lbm_engine.hpp>
 
 namespace isolated {
@@ -106,6 +107,33 @@ void LBMEngine::add_species(const GasSpecies &species) {
 }
 
 void LBMEngine::step(double dt) {
+  if (config_.use_gpu) {
+    if (!gpu_buffers_.initialized) {
+      gpu_buffers_.allocate(n_cells_);
+      if (!gpu_constant_uploaded_) {
+        cuda::upload_constants();
+        gpu_constant_uploaded_ = true;
+      }
+      synchronize_to_device();
+    }
+
+    // Run full step on GPU
+    // 1. Collide + Stream (f -> f_tmp -> f) - updates state
+    // We assume tau[0] is main relaxation time for now since simple kernel
+    double omega = 1.0 / tau_[0];
+    cuda::launch_collide_stream(gpu_buffers_, omega, config_.nx, config_.ny,
+                                config_.nz);
+
+    // 2. Compute macroscopic (for stability check or next step)
+    // Note: kernel_collide_stream already computes rho/u internally for
+    // equilibrium, but if we want them available in global memory for
+    // visualization/stability check:
+    cuda::launch_compute_macroscopic(gpu_buffers_, config_.nx, config_.ny,
+                                     config_.nz);
+
+    return;
+  }
+
   compute_macroscopic();
 
   if (config_.enable_les) {
@@ -331,6 +359,68 @@ double LBMEngine::compute_cfl() const {
 }
 
 bool LBMEngine::is_stable() const { return compute_cfl() < 0.5; }
+
+void LBMEngine::synchronize_to_host() {
+  if (config_.use_gpu && gpu_buffers_.initialized) {
+    // We only sync macroscopic fields to CPU for now
+    // If we needed distribution functions f_ back, we'd copy them too
+    // But usually we only need density/velocity for other systems
+    cuda::copy_from_device(gpu_buffers_, rho_, ux_, uy_, uz_);
+  }
+}
+
+void LBMEngine::synchronize_to_device() {
+  if (config_.use_gpu && gpu_buffers_.initialized) {
+    cuda::copy_to_device(gpu_buffers_, rho_, ux_, uy_, uz_, solid_);
+    // Note: copy_to_device also re-initializes f_ based on rho/u equilibrium
+    // This is a simplification; for exact state restore we'd need f_ array
+    // transfer
+  }
+}
+
+void LBMEngine::wait() {
+  if (config_.use_gpu) {
+#ifdef __CUDACC__
+    cudaDeviceSynchronize();
+#else
+    // If compiled with host compiler but linking against cuda lib, we need a
+    // wrapper But LBMEngine.cpp is compiled as C++ (unless we changed it in
+    // CMake?) Actually CMake GLOB_RECURSE includes .cu files now, but .cpp
+    // files are still compiled with CXX compiler. cudaDeviceSynchronize is a
+    // runtime API, available if we include <cuda_runtime.h>. LBMEngine.cpp
+    // includes <isolated/fluids/lbm_cuda.cuh> which includes <cuda_runtime.h>
+    // if __CUDACC__ is defined. If NOT __CUDACC__, we don't have it. We should
+    // add a wrapper in lbm_cuda.cu exposed in .cuh
+    cuda::device_synchronize();
+#endif
+  }
+}
+
+void LBMEngine::sample_at_positions(
+    const std::vector<std::pair<size_t, size_t>> &positions,
+    std::vector<cuda::FluidSample> &out) {
+  if (!config_.use_gpu || !gpu_buffers_.initialized) {
+    // CPU fallback: sample directly from CPU arrays
+    out.resize(positions.size());
+    for (size_t i = 0; i < positions.size(); ++i) {
+      size_t idx = positions[i].first + config_.nx * positions[i].second;
+      out[i].rho = rho_[idx];
+      out[i].ux = ux_[idx];
+      out[i].uy = uy_[idx];
+      out[i].uz = uz_[idx];
+    }
+    return;
+  }
+
+  // GPU path: use gather kernel
+  std::vector<size_t> indices(positions.size());
+  for (size_t i = 0; i < positions.size(); ++i) {
+    indices[i] = positions[i].first + config_.nx * positions[i].second;
+  }
+
+  cuda::gather_samples(gpu_buffers_, sparse_buffers_, indices, out, config_.nx,
+                       config_.ny);
+}
 
 } // namespace fluids
 } // namespace isolated
