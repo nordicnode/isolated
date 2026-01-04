@@ -1,5 +1,8 @@
+# Unit tests
 add_executable(test_basic test_basic.cpp)
-target_link_libraries(test_basic PRIVATE OpenMP::OpenMP_CXX Eigen3::Eigen fmt::fmt)
-target_include_directories(test_basic PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(test_basic PRIVATE isolated_lib)
+add_test(NAME BasicTests COMMAND test_basic)
 
-add_test(NAME BasicTest COMMAND test_basic)
+# Comprehensive benchmark
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark PRIVATE isolated_lib)

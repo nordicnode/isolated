@@ -32,14 +32,19 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 # Source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-# Main executable
-add_executable(isolated ${SOURCES} main.cpp)
-target_link_libraries(isolated 
-    PRIVATE 
+# Create static library for reuse
+add_library(isolated_lib STATIC ${SOURCES})
+target_link_libraries(isolated_lib 
+    PUBLIC 
     OpenMP::OpenMP_CXX 
     Eigen3::Eigen
     fmt::fmt
 )
+target_include_directories(isolated_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+# Main executable
+add_executable(isolated main.cpp)
+target_link_libraries(isolated PRIVATE isolated_lib)
 
 # Tests
 enable_testing()
