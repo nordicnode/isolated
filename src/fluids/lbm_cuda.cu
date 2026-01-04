@@ -111,20 +111,9 @@ __global__ void kernel_collide_stream(
   size_t z = i / (nx * ny);
 
   if (solid[i]) {
-// Bounce-back
+// Bounce-back: reflect populations at solid boundaries
 #pragma unroll
     for (int q = 1; q < 19; ++q) {
-      // Stream towards neighbor, but it hits wall?
-      // Standard full-way bounce-back:
-      // f_out[q] at 'i' comes from opposite direction of 'i'
-      // effectively swapping directions in place
-      // BUT for streaming step f_out[j] = f_next
-      // It's simpler to just swap directions in the output buffer SAME location
-      // No, for streaming we push to neighbors.
-      // If we are solid, we don't stream OUT.
-      // But we need to handle boundary conditions.
-      // Let's implement simple bounce-back:
-      // Assume solid cells contain the reflected population
       f_out[q * n_cells + i] = f_in[d_opp[q] * n_cells + i];
     }
     f_out[i] = f_in[i]; // q=0
