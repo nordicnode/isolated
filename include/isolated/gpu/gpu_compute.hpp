@@ -1,0 +1,96 @@
+#pragma once
+
+/**
+ * @file gpu_compute.hpp
+ * @brief OpenGL compute shader utilities for GPU physics.
+ * 
+ * Uses Raylib's rlgl to run compute shaders on the GPU.
+ * No CUDA required - works with any OpenGL 4.3+ GPU.
+ */
+
+#include "raylib.h"
+#include "rlgl.h"
+#include <string>
+#include <vector>
+
+namespace isolated {
+namespace gpu {
+
+/**
+ * @brief GPU buffer handle for compute shaders.
+ */
+struct GPUBuffer {
+    unsigned int id = 0;
+    size_t size = 0;
+    
+    void create(size_t bytes);
+    void upload(const void* data, size_t bytes);
+    void download(void* data, size_t bytes);
+    void destroy();
+};
+
+/**
+ * @brief Compute shader wrapper.
+ */
+class ComputeShader {
+public:
+    ComputeShader() = default;
+    ~ComputeShader();
+    
+    /**
+     * @brief Load compute shader from source string.
+     */
+    bool load(const std::string& source);
+    
+    /**
+     * @brief Dispatch compute shader.
+     * @param groups_x Number of work groups in X
+     * @param groups_y Number of work groups in Y
+     * @param groups_z Number of work groups in Z
+     */
+    void dispatch(int groups_x, int groups_y, int groups_z);
+    
+    /**
+     * @brief Set uniform value.
+     */
+    void set_uniform(const char* name, float value);
+    void set_uniform(const char* name, int value);
+    
+    /**
+     * @brief Bind buffer to binding point.
+     */
+    void bind_buffer(int binding, GPUBuffer& buffer);
+    
+    /**
+     * @brief Wait for GPU to finish.
+     */
+    static void barrier();
+    
+    bool is_loaded() const { return program_ != 0; }
+
+private:
+    unsigned int program_ = 0;
+};
+
+/**
+ * @brief Thermal conduction compute kernel.
+ */
+class ThermalComputeKernel {
+public:
+    bool init(size_t width, size_t height);
+    void step(double dt);
+    void upload_temperature(const std::vector<double>& temp);
+    void download_temperature(std::vector<double>& temp);
+    void destroy();
+
+private:
+    ComputeShader shader_;
+    GPUBuffer temp_buffer_;     // Current temperature
+    GPUBuffer temp_new_buffer_; // New temperature (double-buffered)
+    GPUBuffer props_buffer_;    // Material properties (k, cp, rho)
+    size_t width_ = 0, height_ = 0;
+    bool swap_buffers_ = false;
+};
+
+} // namespace gpu
+} // namespace isolated

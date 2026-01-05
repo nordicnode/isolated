@@ -66,6 +66,8 @@ public:
   // Temperature access
   void set_temperature(size_t x, size_t y, size_t z, double temp_k);
   double get_temperature(size_t x, size_t y, size_t z) const;
+  const std::vector<double>& temperature_field() const { return temperature_; }
+  std::vector<double>& temperature_field() { return temperature_; }
 
   // Heat sources
   void add_heat_source(size_t x, size_t y, size_t z, double watts);

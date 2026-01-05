@@ -22,6 +22,7 @@
 #include <isolated/core/lod_zone_manager.hpp>
 #include <isolated/world/chunk_manager.hpp>
 #include <isolated/world/terrain_generator.hpp>
+#include <isolated/gpu/gpu_compute.hpp>
 
 using namespace isolated;
 
@@ -91,6 +92,16 @@ int main() {
   renderer::DebugUI debug_ui;
   debug_ui.init();
   std::cout << "[OK] Debug UI: Dear ImGui initialized" << std::endl;
+  
+  // Initialize GPU Compute for thermal physics
+  gpu::ThermalComputeKernel gpu_thermal;
+  bool gpu_thermal_ready = gpu_thermal.init(200, 200);
+  if (gpu_thermal_ready) {
+    std::cout << "[OK] GPU: Thermal compute kernel ready (200x200)" << std::endl;
+    gpu_thermal.upload_temperature(thermal.temperature_field());
+  } else {
+    std::cout << "[WARN] GPU: Thermal compute shader failed, using CPU fallback" << std::endl;
+  }
 
   // Initialize Entity Manager (ECS)
   entities::EntityManager entity_manager;
