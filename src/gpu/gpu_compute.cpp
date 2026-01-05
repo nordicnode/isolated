@@ -508,100 +508,76 @@ void main() {
     int ly = int(id.y);
     int lz = int(id.z);
     
-    // Global coordinates
+    // Global world coordinates
     float wx = float(chunk_x + lx);
     float wy = float(chunk_y + ly);
     float wz = float(chunk_z + lz);
-    
-    // Index in linear buffer (64x64x64)
     int idx = lx + 64 * (ly + 64 * lz);
     
-    // === TERRAIN HEIGHT with erosion ===
-    float scale = 0.02;
-    float base_height = fbm(vec3(wx * scale, wy * scale, seed)) * 30.0;
+    // === SURFACE HEIGHT ===
+    // 2D terrain height based on x,y only
+    float height_noise = fbm(vec3(wx * 0.02, wy * 0.02, seed)) * 30.0;
+    height_noise += noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 8.0;
+    int surface_z = int(height_noise);
     
-    // Erosion: add smaller-scale variation for realistic surfaces
-    float erosion = noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 5.0;
-    float overhang = noise(vec3(wx * 0.05, wz * 0.1, wy * 0.05 + seed)) * 3.0;
+    // === DETERMINE MATERIAL ===
+    uint mat_id;
+    float dens;
+    float temp;
     
-    int surface_z = int(base_height + erosion);
-    int global_z = int(wz);
-    
-    // === CAVE GENERATION (3D noise) ===
-    // "Worm" caves using distance from noise surface (creates connected tunnels)
-    float worm1 = noise(vec3(wx * 0.035, wy * 0.035, wz * 0.05 + seed));
-    float worm2 = noise(vec3(wx * 0.04 + 100.0, wy * 0.04 + seed, wz * 0.045));
-    float worm_dist = abs(worm1 - 0.5) + abs(worm2 - 0.5);
-    // Only carve worm caves if VERY close to isosurface (0.08 = narrow tunnels)
-    bool is_worm_cave = worm_dist < 0.08 && global_z < surface_z - 5 && global_z > surface_z - 40;
-    
-    // Large caverns - more restrictive threshold (0.55 instead of 0.48)
-    float cavern1 = fbm(vec3(wx * 0.02, wy * 0.02, wz * 0.015));
-    bool is_cavern = cavern1 > 0.55 && global_z < surface_z - 10 && global_z > surface_z - 35;
-    
-    // Near-surface caves (shallow)
-    float shallow = noise(vec3(wx * 0.08, wy * 0.08, wz * 0.06 + seed * 2.0));
-    bool is_shallow_cave = shallow > 0.72 && global_z < surface_z - 2 && global_z > surface_z - 15;
-    
-    // Combine cave types
-    bool carved = is_worm_cave || is_cavern || is_shallow_cave;
-    
-    uint mat_id = 0u; // AIR
-    float dens = 1.225;
-    float temp = 288.0; // 15C
-    
-    if (global_z < surface_z) {
-        // Underground - but check for caves
-        if (carved) {
-            // Cave interior - air
-            mat_id = 0u;
-            dens = 1.225;
-            // Caves are slightly warmer from geothermal
-            float depth = float(surface_z - global_z);
-            temp = 290.0 + depth * 0.015;
-        } else if (global_z < surface_z - 25) {
-            // Deep rock layer
-            float ore_noise = noise(vec3(wx * 0.2, wy * 0.2, wz * 0.2 + seed * 3.0));
-            if (ore_noise > 0.85) {
-                mat_id = 38u; // IRON_ORE = 38
+    if (wz >= float(surface_z)) {
+        // ABOVE surface = AIR
+        mat_id = 0u;
+        dens = 1.225;
+        temp = 288.0;
+    } else {
+        // BELOW surface = SOLID ROCK (default)
+        float depth = float(surface_z) - wz;
+        
+        // Layer selection based on depth
+        if (depth < 5.0) {
+            // Topsoil
+            mat_id = 37u; // SOIL
+            dens = 1500.0;
+        } else if (depth < 15.0) {
+            // Sedimentary rock
+            mat_id = 32u; // LIMESTONE
+            dens = 2500.0;
+        } else if (depth < 30.0) {
+            // Mixed rock
+            float rock_var = noise(vec3(wx * 0.1, wy * 0.1, wz * 0.1));
+            mat_id = (rock_var > 0.5) ? 31u : 32u; // BASALT or LIMESTONE
+            dens = 2600.0;
+        } else {
+            // Deep granite with occasional ores
+            float ore_noise = noise(vec3(wx * 0.15, wy * 0.15, wz * 0.15 + seed * 3.0));
+            if (ore_noise > 0.88) {
+                mat_id = 38u; // IRON_ORE
                 dens = 5000.0;
-            } else if (ore_noise > 0.80) {
-                mat_id = 39u; // COPPER_ORE = 39  
+            } else if (ore_noise > 0.84) {
+                mat_id = 39u; // COPPER_ORE
                 dens = 4500.0;
             } else {
-                mat_id = 30u; // GRANITE = 30
+                mat_id = 30u; // GRANITE
                 dens = 2700.0;
-            }
-        } else if (global_z < surface_z - 8) {
-            // Mid rock layer with variation
-            float rock_noise = noise(vec3(wx*0.1, wy*0.1, wz*0.1));
-            mat_id = (rock_noise > 0.5) ? 31u : 32u; // BASALT = 31, LIMESTONE = 32
-            dens = 2500.0;
-        } else {
-            // Soil layer with some rock outcrops (erosion effect)
-            float eroded = noise(vec3(wx * 0.15, wy * 0.15, wz * 0.2));
-            if (eroded > 0.7) {
-                mat_id = 32u; // LIMESTONE exposed
-                dens = 2500.0;
-            } else {
-                mat_id = 37u; // SOIL = 37
-                dens = 1500.0;
             }
         }
         
-        // Geothermal gradient (unless cave)
-        if (!carved) {
-            float depth = float(surface_z - global_z);
-            temp = 288.0 + depth * 0.025;
+        // Geothermal gradient
+        temp = 288.0 + depth * 0.025;
+        
+        // === CAVE CARVING (rare) ===
+        // Only carve caves if we're in the cave zone (5-50 blocks deep)
+        if (depth > 5.0 && depth < 50.0) {
+            // Simple spherical cave pockets
+            float cave_noise = fbm(vec3(wx * 0.05, wy * 0.05, wz * 0.07));
+            if (cave_noise > 0.62) {
+                // Cave! Replace with air
+                mat_id = 0u;
+                dens = 1.225;
+                temp = 290.0 + depth * 0.01; // Cave temp
+            }
         }
-    } else if (global_z < 0) {
-        // Underwater (sea level = 0)
-        mat_id = 10u; // WATER = 10
-        dens = 1000.0;
-    } else {
-        // Air
-        mat_id = 0u;
-        dens = 1.225;
     }
     
     material[idx] = mat_id;
