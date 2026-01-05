@@ -238,6 +238,16 @@ int main() {
     if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT))
       time_scale = std::max(time_scale / 2.0f, 0.1f);
 
+    // Update chunk loading EVERY FRAME (not just during simulation)
+    // This ensures chunks load when navigating Z-levels even when paused
+    {
+      const Camera2D& cam = game_renderer.get_camera();
+      float world_cell_x = cam.target.x / render_config.tile_size;
+      float world_cell_y = cam.target.y / render_config.tile_size;
+      float world_cell_z = static_cast<float>(game_renderer.get_z_level());
+      chunk_manager.update(world_cell_x, world_cell_y, world_cell_z);
+    }
+
     // Fixed timestep accumulator
     // Add frame time (scaled by time_scale) to accumulator
     double frame_time = static_cast<double>(GetFrameTime());
