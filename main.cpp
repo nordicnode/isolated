@@ -137,6 +137,7 @@ int main() {
   terrain_config.seed = 42;
   terrain_config.terrain_scale = 0.02;
   terrain_config.height_amplitude = 30.0;
+  terrain_config.sea_level = 50.0;  // Surface at Z=50±30, so always Z > 20
   world::TerrainGenerator terrain_gen(terrain_config);
   
   world::ChunkManagerConfig chunk_config;

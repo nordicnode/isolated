@@ -516,9 +516,10 @@ void main() {
     
     // === SURFACE HEIGHT ===
     // 2D terrain height based on x,y only
+    float sea_level = 50.0;  // Match CPU config
     float height_noise = fbm(vec3(wx * 0.02, wy * 0.02, seed)) * 30.0;
     height_noise += noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 8.0;
-    int surface_z = int(height_noise);
+    int surface_z = int(sea_level + height_noise);
     
     // === DETERMINE MATERIAL ===
     uint mat_id;
