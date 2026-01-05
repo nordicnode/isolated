@@ -514,43 +514,83 @@ void main() {
     float wz = float(chunk_z + lz);
     int idx = lx + 64 * (ly + 64 * lz);
     
-    // === SURFACE HEIGHT ===
-    // 2D terrain height based on x,y only
-    float sea_level = 50.0;  // Match CPU config
-    float height_noise = fbm(vec3(wx * 0.02, wy * 0.02, seed)) * 30.0;
-    height_noise += noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 8.0;
-    int surface_z = int(sea_level + height_noise);
+    // === TERRAIN HEIGHT (2D noise for surface) ===
+    float sea_level = 50.0;
+    float base_height = fbm(vec3(wx * 0.02, wy * 0.02, seed)) * 30.0;
+    base_height += noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 8.0;
+    int surface_z = int(sea_level + base_height);
+    
+    // === LAKE/OCEAN BASINS (separate noise layer) ===
+    float basin_noise = fbm(vec3(wx * 0.01, wy * 0.01, seed * 5.0));
+    bool is_water_basin = basin_noise < -0.2;  // Low areas become lakes
+    int water_surface = is_water_basin ? int(sea_level - 5.0 + basin_noise * 10.0) : surface_z;
+    
+    // === RIVER CHANNELS ===
+    float river_x = noise(vec3(wy * 0.005, seed * 3.0, 0.0));
+    float river_dist = abs(wx * 0.01 - river_x * 50.0);
+    bool is_river = river_dist < 0.3 && wz > float(surface_z) - 3.0 && wz < float(surface_z);
     
     // === DETERMINE MATERIAL ===
     uint mat_id;
     float dens;
     float temp;
     
+    // Altitude-based temperature (lapse rate: -6.5°C per 1000m, we use ~0.1°C per block)
+    float altitude_temp = 288.0 - (wz - sea_level) * 0.1;
+    
     if (wz >= float(surface_z)) {
-        // ABOVE surface = AIR
-        mat_id = 0u;
-        dens = 1.225;
-        temp = 288.0;
+        // Above terrain surface
+        if (wz < sea_level && is_water_basin) {
+            // Underwater in lake/ocean basin
+            mat_id = 10u; // WATER
+            dens = 1000.0;
+            temp = max(273.0, altitude_temp);  // Water doesn't freeze below surface
+        } else if (is_river) {
+            // River channel
+            mat_id = 10u; // WATER
+            dens = 1000.0;
+            temp = altitude_temp;
+        } else {
+            // Air above surface
+            mat_id = 0u;
+            dens = 1.225;
+            temp = altitude_temp;
+        }
     } else {
-        // BELOW surface = SOLID ROCK (default)
+        // Below terrain surface = SOLID GROUND
         float depth = float(surface_z) - wz;
         
-        // Layer selection based on depth
-        if (depth < 5.0) {
-            // Topsoil
-            mat_id = 37u; // SOIL
-            dens = 1500.0;
+        // === SURFACE LAYER (affected by climate) ===
+        if (depth < 3.0) {
+            // Surface material depends on altitude
+            if (wz > sea_level + 25.0) {
+                // High altitude: ICE/SNOW
+                mat_id = 11u; // ICE
+                dens = 917.0;
+            } else if (wz > sea_level + 15.0) {
+                // Mountain: STONE exposed
+                mat_id = 30u; // GRANITE
+                dens = 2700.0;
+            } else if (is_water_basin && wz >= int(sea_level) - 10) {
+                // Lake bed: SAND
+                mat_id = 36u; // SAND
+                dens = 1600.0;
+            } else {
+                // Normal surface: SOIL
+                mat_id = 37u; // SOIL
+                dens = 1500.0;
+            }
         } else if (depth < 15.0) {
-            // Sedimentary rock
+            // Shallow underground: sedimentary
             mat_id = 32u; // LIMESTONE
             dens = 2500.0;
         } else if (depth < 30.0) {
-            // Mixed rock
+            // Mid depth: mixed rock
             float rock_var = noise(vec3(wx * 0.1, wy * 0.1, wz * 0.1));
             mat_id = (rock_var > 0.5) ? 31u : 32u; // BASALT or LIMESTONE
             dens = 2600.0;
         } else {
-            // Deep granite with occasional ores
+            // Deep: granite with ores
             float ore_noise = noise(vec3(wx * 0.15, wy * 0.15, wz * 0.15 + seed * 3.0));
             if (ore_noise > 0.88) {
                 mat_id = 38u; // IRON_ORE
@@ -564,19 +604,16 @@ void main() {
             }
         }
         
-        // Geothermal gradient
-        temp = 288.0 + depth * 0.025;
+        // Underground temperature (geothermal gradient)
+        temp = altitude_temp + depth * 0.025;
         
-        // === CAVE CARVING (rare) ===
-        // Only carve caves if we're in the cave zone (5-50 blocks deep)
+        // === CAVE CARVING ===
         if (depth > 5.0 && depth < 50.0) {
-            // Simple spherical cave pockets
             float cave_noise = fbm(vec3(wx * 0.05, wy * 0.05, wz * 0.07));
             if (cave_noise > 0.62) {
-                // Cave! Replace with air
-                mat_id = 0u;
+                mat_id = 0u; // AIR
                 dens = 1.225;
-                temp = 290.0 + depth * 0.01; // Cave temp
+                temp = 290.0 + depth * 0.01;
             }
         }
     }
