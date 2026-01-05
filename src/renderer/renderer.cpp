@@ -234,10 +234,18 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                 }
                 
                 size_t idx = world::Chunk::idx(x, y, local_z);
+                
+                // Safety bounds check
+                if (idx >= world::CHUNK_CELLS) continue;
+                
                 world::Material mat = chunk->material[idx];
                 
                 // Skip air cells
                 if (mat == world::Material::AIR) continue;
+                
+                // Validate material is in expected range
+                int mat_val = static_cast<int>(mat);
+                if (mat_val < 0 || mat_val > 50) continue; // Skip invalid materials
                 
                 // STEP 1: Always draw terrain base color first
                 Color base_color = {80, 80, 80, 255}; // Default gray
