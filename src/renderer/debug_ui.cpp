@@ -173,7 +173,7 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
       int cell_x = static_cast<int>(mouse_world.x / tile_size);
       int cell_y = static_cast<int>(mouse_world.y / tile_size);
 
-      if (cell_x >= 0 && cell_x < 100 && cell_y >= 0 && cell_y < 100 &&
+      if (cell_x >= 0 && cell_x < 200 && cell_y >= 0 && cell_y < 200 &&
           mouse_screen.x > sidebar_width) {
         inspected_x_ = cell_x;
         inspected_y_ = cell_y;

@@ -25,8 +25,8 @@ int main() {
 
   // Initialize LBM Fluid System
   fluids::LBMConfig lbm_config;
-  lbm_config.nx = 100;
-  lbm_config.ny = 100;
+  lbm_config.nx = 200;  // Reasonable size for CPU simulation
+  lbm_config.ny = 200;
   lbm_config.nz = 1;
   lbm_config.enable_les = true;
   lbm_config.collision_mode = fluids::CollisionMode::MRT;
@@ -38,8 +38,8 @@ int main() {
 
   // Initialize Thermal System
   thermal::ThermalConfig thermal_config;
-  thermal_config.nx = 100;
-  thermal_config.ny = 100;
+  thermal_config.nx = 200;
+  thermal_config.ny = 200;
   thermal_config.nz = 1;
   thermal_config.enable_radiation = true;
 
@@ -47,12 +47,12 @@ int main() {
 
   // Set up some interesting initial conditions
   // Hot spot in center
-  thermal.set_material(50, 50, 0, "granite");
-  thermal.set_temperature(50, 50, 0, 500.0);
+  thermal.set_material(100, 100, 0, "granite");
+  thermal.set_temperature(100, 100, 0, 500.0);
 
   // Cold region in corner
-  for (int x = 10; x < 20; ++x) {
-    for (int y = 10; y < 20; ++y) {
+  for (int x = 20; x < 40; ++x) {
+    for (int y = 20; y < 40; ++y) {
       thermal.set_temperature(x, y, 0, 220.0);
     }
   }
@@ -70,7 +70,7 @@ int main() {
   renderer::RendererConfig render_config;
   render_config.window_width = 1280;
   render_config.window_height = 720;
-  render_config.tile_size = 8;
+  render_config.tile_size = 4;  // 4px per cell
   render_config.title = "Isolated - Visual Simulation";
   render_config.target_fps = 60;
 

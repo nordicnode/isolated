@@ -72,8 +72,8 @@ private:
   Camera2D camera_{};
 
   // Simulation grid dimensions (set from LBM engine)
-  size_t grid_nx_ = 100;
-  size_t grid_ny_ = 100;
+  size_t grid_nx_ = 200;
+  size_t grid_ny_ = 200;
   size_t grid_nz_ = 1;
 
   // View state

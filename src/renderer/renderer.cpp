@@ -149,13 +149,16 @@ void Renderer::draw_grid(const fluids::LBMEngine &fluids,
 
   size_t nx = grid_nx_;
   size_t ny = grid_ny_;
+  int img_width = static_cast<int>(nx * tile);
 
-  // OPTIMIZED: Write pixels to Image, upload once, draw single texture
-  // This reduces 10,000+ draw calls to just 1 for 100x100 grid
+  // OPTIMIZED: Direct memory access to pixel buffer (no function call overhead)
+  // This replaces millions of ImageDrawPixel calls with direct pointer writes
+  Color *pixels = reinterpret_cast<Color *>(grid_image_.data);
 
-  // Update the grid image pixel by pixel
-  for (size_t y = 0; y < ny; ++y) {
-    for (size_t x = 0; x < nx; ++x) {
+  // Parallelize outer loop with OpenMP for large grids
+  #pragma omp parallel for schedule(dynamic, 16)
+  for (int y = 0; y < static_cast<int>(ny); ++y) {
+    for (int x = 0; x < static_cast<int>(nx); ++x) {
       // Procedural variation based on position (deterministic noise)
       unsigned int hash = static_cast<unsigned int>(x * 374761393 + y * 668265263);
       hash = (hash ^ (hash >> 13)) * 1274126177;
@@ -163,20 +166,25 @@ void Renderer::draw_grid(const fluids::LBMEngine &fluids,
       // Get cell color based on overlay
       Color cell_color = get_cell_color(fluids, thermal, x, y, z, hash);
 
-      // Fill tile pixels in the image
-      int px_start = static_cast<int>(x * tile);
-      int py_start = static_cast<int>(y * tile);
+      // Pre-calculate darkened border color
+      Color border_color = {
+          static_cast<unsigned char>(cell_color.r * 0.7),
+          static_cast<unsigned char>(cell_color.g * 0.7),
+          static_cast<unsigned char>(cell_color.b * 0.7),
+          255};
+
+      // Fill tile pixels directly in memory
+      int px_base = x * tile;
+      int py_base = y * tile;
 
       for (int ty = 0; ty < tile; ++ty) {
+        int row_offset = (py_base + ty) * img_width + px_base;
+        bool is_border_row = (ty == tile - 1);
+
         for (int tx = 0; tx < tile; ++tx) {
-          // Add subtle grid lines (1px darker border)
-          Color pixel_color = cell_color;
-          if (tx == tile - 1 || ty == tile - 1) {
-            pixel_color.r = static_cast<unsigned char>(pixel_color.r * 0.7);
-            pixel_color.g = static_cast<unsigned char>(pixel_color.g * 0.7);
-            pixel_color.b = static_cast<unsigned char>(pixel_color.b * 0.7);
-          }
-          ImageDrawPixel(&grid_image_, px_start + tx, py_start + ty, pixel_color);
+          // Grid line on right/bottom edge
+          bool is_border = is_border_row || (tx == tile - 1);
+          pixels[row_offset + tx] = is_border ? border_color : cell_color;
         }
       }
     }
