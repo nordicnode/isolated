@@ -214,15 +214,25 @@ void ChunkManager::sync_to_physics(std::vector<double>& temp_buffer,
     int origin_x = (camera_chunk_.x * static_cast<int>(CHUNK_SIZE)) - physics_width / 2;
     int origin_y = (camera_chunk_.y * static_cast<int>(CHUNK_SIZE)) - physics_height / 2;
     
-    // Copy chunk data to physics buffers
+    // Copy chunk data to physics buffers (ONLY from loaded chunks - no loading!)
     for (int py = 0; py < physics_height; ++py) {
         for (int px = 0; px < physics_width; ++px) {
             int world_x = origin_x + px;
             int world_y = origin_y + py;
             size_t idx = py * physics_width + px;
             
-            temp_buffer[idx] = get_temperature(world_x, world_y, z_level);
-            density_buffer[idx] = get_density(world_x, world_y, z_level);
+            // Get chunk WITHOUT triggering load
+            ChunkCoord cc = world_to_chunk(world_x, world_y, z_level);
+            auto it = loaded_chunks_.find(cc);
+            if (it != loaded_chunks_.end()) {
+                int lx = ((world_x % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                int ly = ((world_y % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                int lz = ((z_level % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                size_t cidx = Chunk::idx(lx, ly, lz);
+                temp_buffer[idx] = it->second->temperature[cidx];
+                density_buffer[idx] = it->second->density[cidx];
+            }
+            // else: keep default values (no load triggered)
         }
     }
 }
@@ -236,15 +246,24 @@ void ChunkManager::sync_from_physics(const std::vector<double>& temp_buffer,
     int origin_x = (camera_chunk_.x * static_cast<int>(CHUNK_SIZE)) - physics_width / 2;
     int origin_y = (camera_chunk_.y * static_cast<int>(CHUNK_SIZE)) - physics_height / 2;
     
-    // Copy physics results back to chunks
+    // Copy physics results back to chunks (ONLY loaded chunks - no loading!)
     for (int py = 0; py < physics_height; ++py) {
         for (int px = 0; px < physics_width; ++px) {
             int world_x = origin_x + px;
             int world_y = origin_y + py;
             size_t idx = py * physics_width + px;
             
-            set_temperature(world_x, world_y, z_level, temp_buffer[idx]);
-            // Note: density is typically computed by physics, not written back
+            // Get chunk WITHOUT triggering load
+            ChunkCoord cc = world_to_chunk(world_x, world_y, z_level);
+            auto it = loaded_chunks_.find(cc);
+            if (it != loaded_chunks_.end()) {
+                int lx = ((world_x % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                int ly = ((world_y % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                int lz = ((z_level % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+                size_t cidx = Chunk::idx(lx, ly, lz);
+                it->second->temperature[cidx] = temp_buffer[idx];
+                it->second->dirty = true;
+            }
         }
     }
 }
