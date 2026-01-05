@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include <queue>
+#include <list>
 #include <mutex>
 #include <functional>
 
@@ -94,6 +95,10 @@ private:
     ChunkManagerConfig config_;
     std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash> loaded_chunks_;
     
+    // LRU tracking for eviction
+    std::list<ChunkCoord> lru_order_;  // Front = oldest, Back = newest
+    std::unordered_map<ChunkCoord, std::list<ChunkCoord>::iterator, ChunkCoordHash> lru_map_;
+    
     // Current camera chunk
     ChunkCoord camera_chunk_{0, 0, 0};
     
@@ -107,6 +112,9 @@ private:
     void generate_chunk(Chunk& chunk);
     bool try_load_from_disk(Chunk& chunk);
     void save_to_disk(const Chunk& chunk);
+    void touch_lru(ChunkCoord coords);  // Move chunk to back of LRU
+    void evict_lru();  // Evict oldest chunk
+    std::string get_chunk_path(ChunkCoord coords) const;
 };
 
 // Inline helpers

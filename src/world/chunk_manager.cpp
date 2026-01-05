@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 namespace isolated {
 namespace world {
@@ -202,9 +203,9 @@ void ChunkManager::save_all() {
 }
 
 void ChunkManager::load_chunk(ChunkCoord coords) {
-    if (loaded_chunks_.size() >= config_.max_loaded) {
-        // TODO: Evict LRU chunk
-        return;
+    // Evict oldest chunk if at capacity
+    while (loaded_chunks_.size() >= config_.max_loaded) {
+        evict_lru();
     }
     
     auto chunk = std::make_unique<Chunk>(coords);
@@ -216,6 +217,10 @@ void ChunkManager::load_chunk(ChunkCoord coords) {
     }
     
     loaded_chunks_[coords] = std::move(chunk);
+    
+    // Add to LRU (newest at back)
+    lru_order_.push_back(coords);
+    lru_map_[coords] = std::prev(lru_order_.end());
 }
 
 void ChunkManager::unload_chunk(ChunkCoord coords) {
@@ -225,6 +230,13 @@ void ChunkManager::unload_chunk(ChunkCoord coords) {
             save_to_disk(*it->second);
         }
         loaded_chunks_.erase(it);
+        
+        // Remove from LRU tracking
+        auto lru_it = lru_map_.find(coords);
+        if (lru_it != lru_map_.end()) {
+            lru_order_.erase(lru_it->second);
+            lru_map_.erase(lru_it);
+        }
     }
 }
 
@@ -235,14 +247,99 @@ void ChunkManager::generate_chunk(Chunk& chunk) {
 }
 
 bool ChunkManager::try_load_from_disk(Chunk& chunk) {
-    // TODO: Implement binary chunk file loading
-    // Format: <save_path>/chunk_x_y_z.bin
-    return false; // Not found
+    std::string path = get_chunk_path(chunk.coords);
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return false;
+    
+    // Read header
+    char magic[4];
+    file.read(magic, 4);
+    if (std::string(magic, 4) != "ICHK") return false;
+    
+    uint32_t version;
+    file.read(reinterpret_cast<char*>(&version), 4);
+    if (version != 1) return false;
+    
+    // Read material array (as uint8_t)
+    constexpr size_t VOXELS = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+    std::vector<uint8_t> mat_bytes(VOXELS);
+    file.read(reinterpret_cast<char*>(mat_bytes.data()), VOXELS);
+    for (size_t i = 0; i < VOXELS; ++i) {
+        chunk.material[i] = static_cast<Material>(mat_bytes[i]);
+    }
+    
+    // Read temperature
+    file.read(reinterpret_cast<char*>(chunk.temperature.data()), VOXELS * sizeof(double));
+    
+    // Read density
+    file.read(reinterpret_cast<char*>(chunk.density.data()), VOXELS * sizeof(double));
+    
+    // Read o2_fraction
+    file.read(reinterpret_cast<char*>(chunk.o2_fraction.data()), VOXELS * sizeof(double));
+    
+    chunk.dirty = false;
+    return true;
 }
 
 void ChunkManager::save_to_disk(const Chunk& chunk) {
-    // TODO: Implement binary chunk file saving
-    // For now, just mark as saved
+    std::string path = get_chunk_path(chunk.coords);
+    
+    // Ensure directory exists
+    std::filesystem::path dir = std::filesystem::path(path).parent_path();
+    std::filesystem::create_directories(dir);
+    
+    std::ofstream file(path, std::ios::binary);
+    if (!file) {
+        std::cerr << "Failed to save chunk: " << path << std::endl;
+        return;
+    }
+    
+    // Write header
+    file.write("ICHK", 4);  // Magic
+    uint32_t version = 1;
+    file.write(reinterpret_cast<const char*>(&version), 4);
+    
+    // Write material array (as uint8_t)
+    constexpr size_t VOXELS = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+    std::vector<uint8_t> mat_bytes(VOXELS);
+    for (size_t i = 0; i < VOXELS; ++i) {
+        mat_bytes[i] = static_cast<uint8_t>(chunk.material[i]);
+    }
+    file.write(reinterpret_cast<const char*>(mat_bytes.data()), VOXELS);
+    
+    // Write temperature
+    file.write(reinterpret_cast<const char*>(chunk.temperature.data()), VOXELS * sizeof(double));
+    
+    // Write density
+    file.write(reinterpret_cast<const char*>(chunk.density.data()), VOXELS * sizeof(double));
+    
+    // Write o2_fraction
+    file.write(reinterpret_cast<const char*>(chunk.o2_fraction.data()), VOXELS * sizeof(double));
+}
+
+void ChunkManager::touch_lru(ChunkCoord coords) {
+    auto it = lru_map_.find(coords);
+    if (it != lru_map_.end()) {
+        // Move to back (most recently used)
+        lru_order_.erase(it->second);
+        lru_order_.push_back(coords);
+        it->second = std::prev(lru_order_.end());
+    }
+}
+
+void ChunkManager::evict_lru() {
+    if (lru_order_.empty()) return;
+    
+    // Get oldest chunk (front of list)
+    ChunkCoord oldest = lru_order_.front();
+    unload_chunk(oldest);
+}
+
+std::string ChunkManager::get_chunk_path(ChunkCoord coords) const {
+    return config_.save_path + "chunk_" + 
+           std::to_string(coords.x) + "_" + 
+           std::to_string(coords.y) + "_" + 
+           std::to_string(coords.z) + ".bin";
 }
 
 } // namespace world

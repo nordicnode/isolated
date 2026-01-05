@@ -140,9 +140,10 @@ int main() {
   world::TerrainGenerator terrain_gen(terrain_config);
   
   world::ChunkManagerConfig chunk_config;
-  chunk_config.load_radius = 1;    // Minimal: only 3x3x1 = 9 chunks around camera
-  chunk_config.unload_radius = 3;  // Keep nearby chunks cached
-  chunk_config.max_loaded = 50;    // Limit memory usage
+  chunk_config.load_radius = 2;      // 5x5x3 = 75 chunks around camera
+  chunk_config.unload_radius = 4;    // Keep nearby chunks cached  
+  chunk_config.max_loaded = 200;     // 200 chunks max in memory (~6MB per chunk)
+  chunk_config.save_path = "./world_data/";  // Disk streaming path
   world::ChunkManager chunk_manager(chunk_config);
   
   // Initialize GPU Terrain Generator
