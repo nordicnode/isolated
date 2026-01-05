@@ -239,10 +239,20 @@ int main() {
         chunk_manager.update(cam.target.x, cam.target.y, 0.0f);
       }
       
-      // All physics systems run every step (GPU accelerated when available)
-      // TODO: Pass lod_manager to engines for per-cell LOD skipping
+      // Physics on GPU when available, CPU fallback otherwise
       fluids.step(fixed_dt);
-      thermal.step(fixed_dt);
+      
+      // Thermal physics: GPU accelerated
+      if (gpu_thermal_ready) {
+        gpu_thermal.step(fixed_dt);
+        // Sync back every 10 steps for visualization (not every step - expensive!)
+        if (step_count % 10 == 0) {
+          gpu_thermal.download_temperature(thermal.temperature_field());
+        }
+      } else {
+        thermal.step(fixed_dt);
+      }
+      
       circulation.step(fixed_dt);
       blood_chem.step(fixed_dt);
       entity_manager.update(fixed_dt);
