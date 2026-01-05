@@ -475,6 +475,35 @@ void DebugUI::draw_right_sidebar(int z_level, int overlay_type, size_t chunk_cou
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f), "%d", z_level);
     
+    // Z-Depth visual bar (DF-style)
+    float z_progress = (float)(z_level + 50) / 150.0f; // Range: -50 to 100
+    z_progress = std::clamp(z_progress, 0.0f, 1.0f);
+    
+    // Color bar: blue (deep) -> green (surface) -> white (sky)
+    ImVec4 bar_color;
+    if (z_level < 30) {
+        float t = (float)(z_level + 50) / 80.0f;
+        bar_color = ImVec4(0.2f, 0.3f + t * 0.3f, 0.4f + t * 0.3f, 1.0f);
+    } else if (z_level < 60) {
+        bar_color = ImVec4(0.3f, 0.7f, 0.4f, 1.0f); // Surface green
+    } else {
+        float t = (float)(z_level - 60) / 40.0f;
+        bar_color = ImVec4(0.6f + t * 0.4f, 0.7f + t * 0.3f, 0.8f + t * 0.2f, 1.0f);
+    }
+    
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, bar_color);
+    ImGui::ProgressBar(z_progress, ImVec2(-1, 8), "");
+    ImGui::PopStyleColor();
+    
+    // Depth label
+    const char* depth_label = "Surface";
+    if (z_level < 20) depth_label = "Deep";
+    else if (z_level < 40) depth_label = "Underground";
+    else if (z_level < 55) depth_label = "Near Surface";
+    else if (z_level < 75) depth_label = "Surface";
+    else depth_label = "Sky";
+    ImGui::TextDisabled("%s", depth_label);
+    
     // Chunks loaded
     ImGui::Text("Chunks:");
     ImGui::SameLine();
@@ -497,6 +526,31 @@ void DebugUI::draw_right_sidebar(int z_level, int overlay_type, size_t chunk_cou
     
     int idx = std::clamp(overlay_type, 0, 3);
     ImGui::TextColored(overlay_colors[idx], "%s", overlay_names[idx]);
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    
+    // Material Legend (collapsible)
+    if (ImGui::TreeNode("Materials")) {
+        auto draw_mat = [](const char* name, ImU32 color) {
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + 12, p.y + 12), color);
+            ImGui::Dummy(ImVec2(14, 12));
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", name);
+        };
+        
+        draw_mat("Soil", IM_COL32(101, 67, 33, 255));
+        draw_mat("Limestone", IM_COL32(180, 180, 170, 255));
+        draw_mat("Granite", IM_COL32(60, 50, 50, 255));
+        draw_mat("Basalt", IM_COL32(40, 40, 45, 255));
+        draw_mat("Water", IM_COL32(30, 100, 200, 255));
+        draw_mat("Ice", IM_COL32(200, 220, 255, 255));
+        draw_mat("Iron Ore", IM_COL32(150, 90, 70, 255));
+        draw_mat("Copper Ore", IM_COL32(180, 115, 75, 255));
+        
+        ImGui::TreePop();
+    }
     
     ImGui::Spacing();
     
