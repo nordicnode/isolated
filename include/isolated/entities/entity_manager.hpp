@@ -2,6 +2,7 @@
 
 #include "entt/entt.hpp"
 #include <isolated/entities/components.hpp>
+#include <isolated/entities/spatial_index.hpp>
 #include <string>
 
 namespace isolated {
@@ -37,9 +38,11 @@ public:
 
 private:
   entt::registry registry_;
+  SpatialIndex spatial_index_;
 
   // System methods
   void update_movement(double dt);
+  void update_spatial_index();
 };
 
 } // namespace entities

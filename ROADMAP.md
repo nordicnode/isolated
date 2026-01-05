@@ -88,19 +88,19 @@ Phase 8: Polish & Advanced Rendering    [Weeks 43-50]
 - [ ] 🟢 **System toggles** — Enable/disable individual systems
 
 ### 1.1.3 Visual Feedback
-- [ ] 🔴 **Astronaut representation** — Colored circle with direction
+- [x] 🔴 **Astronaut representation** — Colored circle/glyph (EnTT rendering)
 - [ ] 🔴 **Pathfinding visualization** — Show A* path as line
 - [ ] 🟡 **AI state display** — Text above entity showing current action
 - [ ] 🟡 **Hazard highlights** — Red overlay on dangerous tiles
-- [ ] 🟢 **Selection highlight** — Outline selected entity
+- [x] 🟢 **Selection highlight** — Outline selected entity (Yellow bracket)
 
 ## 1.2 EnTT Integration
 
 ### 1.2.1 Core Setup (Week 2)
-- [ ] 🔴 **Add EnTT as dependency** — Header-only, just include
-- [ ] 🔴 **Basic component types** — Position, Velocity, Health, Astronaut
-- [ ] 🔴 **Entity creation/destruction** — Spawn/despawn astronauts
-- [ ] 🔴 **System registration** — Process entities each frame
+- [x] 🔴 **Add EnTT as dependency** — Header-only, just include
+- [x] 🔴 **Basic component types** — Position, Velocity, Health, Astronaut
+- [x] 🔴 **Entity creation/destruction** — Spawn/despawn astronauts
+- [ ] 🔴 **System registration** — Process entities each frame (Partially done in EntityManager)
 - [ ] 🟡 **Component observers** — React to component add/remove
 - [ ] 🟢 **Entity prefabs** — Templates for common entities
 
