@@ -1,12 +1,22 @@
 # Isolated (C++)
 
-High-performance habitat simulation framework written in modern C++20 with **CUDA GPU acceleration**.
+High-performance habitat simulation framework written in modern C++20 with **optional CUDA GPU acceleration** and a **Dwarf Fortress-inspired visual interface**.
+
+![Dwarf Fortress-style ASCII rendering with real-time simulation data](docs/screenshot.png)
 
 ## Features
 
+### 🎮 Visual Simulation (NEW)
+- **Raylib** tile-based ASCII rendering (Dwarf Fortress-style)
+- **Dear ImGui** unified sidebar UI with DF theme
+- Real-time temperature, pressure, and oxygen overlays
+- Cell inspector (hover for live simulation data)
+- Camera pan/zoom controls
+- Simulation pause, step, and time scale controls
+
 ### 🚀 GPU-Accelerated Fluid Dynamics (LBM)
 - D3Q19 lattice with MRT collision
-- **CUDA kernels** for 20× speedup over CPU
+- **CUDA kernels** for 20× speedup (optional, CPU fallback available)
 - **Sparse readback** for efficient agent queries (~10µs)
 - Large Eddy Simulation (LES) turbulence
 - Multi-species gas tracking (O₂, N₂, CO₂, H₂O, CO)
@@ -61,21 +71,53 @@ High-performance habitat simulation framework written in modern C++20 with **CUD
 
 ## Build
 
+### Windows (MSVC)
+
+```powershell
+mkdir build; cd build
+cmake ..
+cmake --build . --config Release
+.\Release\isolated.exe
+```
+
+### Linux (GCC/Clang)
+
 ```bash
 # Dependencies (Ubuntu)
-sudo apt install libeigen3-dev libfmt-dev libomp-dev cmake nvidia-cuda-toolkit
+sudo apt install libeigen3-dev libfmt-dev libomp-dev cmake
+
+# Optional: CUDA support
+sudo apt install nvidia-cuda-toolkit
 
 # Build
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j$(nproc)
 
-# Run benchmark
-./tests/benchmark
-
-# Run simulation
+# Run
 ./isolated
 ```
+
+### Dependencies (auto-fetched via CMake)
+- **Raylib** 5.5 — Graphics
+- **Dear ImGui** (docking branch) — UI
+- **rlImGui** — Raylib/ImGui binding
+- **Eigen3** — Linear algebra
+- **fmt** — String formatting
+- **OpenMP** — CPU parallelization
+- **CUDA** — GPU acceleration (optional)
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| **WASD / Arrows** | Pan camera |
+| **Mouse Wheel** | Zoom |
+| **1 / 2 / 3 / 0** | Toggle overlay (Pressure/Temp/O2/None) |
+| **Space** | Pause/Resume simulation |
+| **Q / E** | Z-level up/down |
+| **+/-** | Adjust time scale |
+| **F3** | Toggle event log |
 
 ## Performance
 
@@ -92,14 +134,23 @@ make -j$(nproc)
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│   GPU (CUDA)    │     │   CPU (OpenMP)  │
-├─────────────────┤     ├─────────────────┤
-│ LBM Fluids      │◄───►│ Thermal Engine  │
-│ Sparse Readback │     │ Biology Systems │
-└─────────────────┘     │ World Gen       │
-                        └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   GPU (CUDA)    │     │   CPU (OpenMP)  │     │   Renderer      │
+├─────────────────┤     ├─────────────────┤     ├─────────────────┤
+│ LBM Fluids      │◄───►│ Thermal Engine  │◄───►│ Raylib ASCII    │
+│ Sparse Readback │     │ Biology Systems │     │ ImGui Sidebar   │
+└─────────────────┘     │ World Gen       │     │ Overlays        │
+                        └─────────────────┘     └─────────────────┘
 ```
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the complete development plan including:
+- Entity-Component System (EnTT)
+- Astronaut AI (Utility AI → GOAP)
+- Needs/Moods simulation
+- Building and equipment systems
+- Storytelling and events
 
 ## License
 
