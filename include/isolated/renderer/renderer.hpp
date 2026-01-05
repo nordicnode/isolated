@@ -97,7 +97,7 @@ private:
   size_t grid_nz_ = 64; // Match chunk Z size for proper navigation
 
   // View state
-  int current_z_ = 0;
+  int current_z_ = 50;  // Start at surface level (sea_level)
   OverlayType active_overlay_ = OverlayType::NONE;
 
   // Simulation control

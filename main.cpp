@@ -117,9 +117,9 @@ int main() {
   entity_manager.init();
   
   // Spawn test entities
-  entity_manager.spawn_astronaut(50, 50, 0, "Bob");
-  entity_manager.spawn_astronaut(60, 40, 0, "Alice");
-  entity_manager.spawn_astronaut(100, 100, 0, "Commander");
+  entity_manager.spawn_astronaut(50, 50, 51, "Bob");       // Z=51 is surface level
+  entity_manager.spawn_astronaut(60, 40, 51, "Alice");
+  entity_manager.spawn_astronaut(100, 100, 51, "Commander");
   
   std::cout << "[OK] ECS: EnTT initialized, 3 astronauts spawned" << std::endl;
   
@@ -176,8 +176,8 @@ int main() {
       }
   });
   
-  // Pre-load chunks around origin
-  chunk_manager.update(100.0f, 100.0f, 0.0f);
+  // Pre-load chunks around surface (Z=50 is sea_level)
+  chunk_manager.update(100.0f, 100.0f, 50.0f);
   std::cout << "[OK] World: ChunkManager initialized, " << chunk_manager.loaded_count() 
             << " chunks loaded" << std::endl;
   std::cout << std::endl;
