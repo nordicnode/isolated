@@ -140,9 +140,9 @@ int main() {
   world::TerrainGenerator terrain_gen(terrain_config);
   
   world::ChunkManagerConfig chunk_config;
-  chunk_config.load_radius = 3;    // Load 3 chunks around camera (7x7x3 = 147 chunks)
-  chunk_config.unload_radius = 5;
-  chunk_config.max_loaded = 200;
+  chunk_config.load_radius = 1;    // Minimal: only 3x3x1 = 9 chunks around camera
+  chunk_config.unload_radius = 3;  // Keep nearby chunks cached
+  chunk_config.max_loaded = 50;    // Limit memory usage
   world::ChunkManager chunk_manager(chunk_config);
   
   // Wire terrain generator into chunk manager
@@ -267,15 +267,18 @@ int main() {
         thermal.step(fixed_dt);
       }
       
-      circulation.step(fixed_dt);
-      blood_chem.step(fixed_dt);
+      // Biological systems: throttled (don't need per-step accuracy)
+      if (step_count % 10 == 0) {
+        circulation.step(fixed_dt * 10);  // Compensate for fewer updates
+        blood_chem.step(fixed_dt * 10);
+      }
       entity_manager.update(fixed_dt);
       
-      // Update astronaut needs (O2 consumption, hypoxia)
-      entities::NeedsSystem::update(fixed_dt, entity_manager.registry(), fluids);
-      
-      // Update metabolism (Heat generation, Calorie burn)
-      entities::MetabolismSystem::update(fixed_dt, entity_manager.registry(), thermal);
+      // Update astronaut needs (throttled - every 5 steps)
+      if (step_count % 5 == 0) {
+        entities::NeedsSystem::update(fixed_dt * 5, entity_manager.registry(), fluids);
+        entities::MetabolismSystem::update(fixed_dt * 5, entity_manager.registry(), thermal);
+      }
       
       sim_time += fixed_dt;
       accumulator -= fixed_dt;
