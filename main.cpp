@@ -268,8 +268,10 @@ int main() {
         vp.y_max = std::min(199, cam_y + 50);
         lod_manager.set_viewport(vp);
         
-        // Update chunk loading based on camera (world coords)
-        chunk_manager.update(cam.target.x, cam.target.y, 0.0f);
+        // Update chunk loading based on camera (convert pixels to world cells)
+        float world_cell_x = cam.target.x / render_config.tile_size;
+        float world_cell_y = cam.target.y / render_config.tile_size;
+        chunk_manager.update(world_cell_x, world_cell_y, 0.0f);
       }
       
       // LBM Fluid physics: GPU accelerated

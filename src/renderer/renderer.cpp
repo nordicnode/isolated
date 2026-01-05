@@ -271,6 +271,12 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                            world::CHUNK_SIZE * tile, 
                            {255, 255, 255, 30});
     }
+    
+    // Debug info: show chunk count and Z-level
+    // Draw in screen space (after EndMode2D in main, but we're still in 2D mode here)
+    // Instead, draw at a fixed world position that's always visible
+    DrawText(TextFormat("Chunks: %d | Z: %d", (int)chunks.size(), z_layer), 
+             10, 10, 20, YELLOW);
 }
 
 Color Renderer::get_cell_color(const fluids::LBMEngine &fluids,
