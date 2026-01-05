@@ -236,74 +236,70 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                 size_t idx = world::Chunk::idx(x, y, local_z);
                 world::Material mat = chunk->material[idx];
                 
-                Color color = {0, 0, 0, 0};
-                bool should_draw = true;
+                // Skip air cells
+                if (mat == world::Material::AIR) continue;
                 
-                // BASE: Material colors (when no overlay)
-                if (active_overlay_ == OverlayType::NONE) {
-                    switch (mat) {
-                        case world::Material::AIR:
-                             should_draw = false;
-                             break;
-                        case world::Material::GRANITE:   color = {60, 50, 50, 255}; break;
-                        case world::Material::BASALT:    color = {40, 40, 45, 255}; break;
-                        case world::Material::LIMESTONE: color = {180, 180, 170, 255}; break;
-                        case world::Material::SOIL:      color = {101, 67, 33, 255}; break;
-                        case world::Material::WATER:     color = {0, 100, 200, 200}; break;
-                        default:                         color = {80, 80, 80, 255}; break;
-                    }
-                } else {
-                    // OVERLAYS: Color based on chunk physics data
+                // STEP 1: Always draw terrain base color first
+                Color base_color = {80, 80, 80, 255}; // Default gray
+                switch (mat) {
+                    case world::Material::GRANITE:   base_color = {60, 50, 50, 255}; break;
+                    case world::Material::BASALT:    base_color = {40, 40, 45, 255}; break;
+                    case world::Material::LIMESTONE: base_color = {180, 180, 170, 255}; break;
+                    case world::Material::SOIL:      base_color = {101, 67, 33, 255}; break;
+                    case world::Material::WATER:     base_color = {0, 100, 200, 255}; break;
+                    default: break;
+                }
+                
+                // Add some variation based on coord hash
+                unsigned int seed = world_x * 73856093 ^ world_y * 19349663 ^ z_layer * 83492791;
+                int var = (seed % 20) - 10;
+                if (mat != world::Material::WATER) {
+                    base_color.r = (unsigned char)std::clamp(base_color.r + var, 0, 255);
+                    base_color.g = (unsigned char)std::clamp(base_color.g + var, 0, 255);
+                    base_color.b = (unsigned char)std::clamp(base_color.b + var, 0, 255);
+                }
+                
+                // Draw terrain base
+                DrawRectangle(world_x * tile, world_y * tile, tile, tile, base_color);
+                
+                // STEP 2: Draw overlay on TOP with transparency (if active)
+                if (active_overlay_ != OverlayType::NONE) {
                     double temp = chunk->temperature[idx];
                     double dens = chunk->density[idx];
+                    Color overlay = {0, 0, 0, 0};
                     
                     switch (active_overlay_) {
                         case OverlayType::TEMPERATURE: {
-                            // Map 200K - 400K to blue->red
                             double t = std::clamp((temp - 200.0) / 200.0, 0.0, 1.0);
-                            color.r = static_cast<unsigned char>(t * 255);
-                            color.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
-                            color.b = static_cast<unsigned char>((1.0 - t) * 255);
-                            color.a = (mat == world::Material::AIR) ? 30 : 60; // Very transparent
+                            overlay.r = static_cast<unsigned char>(t * 255);
+                            overlay.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
+                            overlay.b = static_cast<unsigned char>((1.0 - t) * 255);
+                            overlay.a = 100; // 40% opacity overlay
                             break;
                         }
                         case OverlayType::PRESSURE: {
-                            // Map density: 1.0 (low) to 3000 (high) -> blue to yellow
                             double d = std::clamp((dens - 1.0) / 3000.0, 0.0, 1.0);
-                            color.r = static_cast<unsigned char>(d * 255);
-                            color.g = static_cast<unsigned char>(d * 200);
-                            color.b = static_cast<unsigned char>((1.0 - d) * 200);
-                            color.a = (mat == world::Material::AIR) ? 20 : 60; // Very transparent
+                            overlay.r = static_cast<unsigned char>(d * 255);
+                            overlay.g = static_cast<unsigned char>(d * 200);
+                            overlay.b = static_cast<unsigned char>((1.0 - d) * 200);
+                            overlay.a = 100; // 40% opacity overlay
                             break;
                         }
                         case OverlayType::OXYGEN: {
-                            // Chunk doesn't have per-cell O2, use fallback (green = normal, red = low)
                             double o2_frac = (chunk->o2_fraction.size() > idx) ? chunk->o2_fraction[idx] : 0.21;
                             double o = std::clamp(o2_frac / 0.21, 0.0, 1.0);
-                            color.r = static_cast<unsigned char>((1.0 - o) * 200);
-                            color.g = static_cast<unsigned char>(o * 200);
-                            color.b = 50;
-                            color.a = (mat == world::Material::AIR) ? 30 : 60; // Very transparent
+                            overlay.r = static_cast<unsigned char>((1.0 - o) * 200);
+                            overlay.g = static_cast<unsigned char>(o * 200);
+                            overlay.b = 50;
+                            overlay.a = 100; // 40% opacity overlay
                             break;
                         }
                         default: break;
                     }
+                    
+                    // Draw overlay on top of terrain
+                    DrawRectangle(world_x * tile, world_y * tile, tile, tile, overlay);
                 }
-                
-                if (!should_draw) continue;
-                
-                // Add some variation based on coord hash (for material view only)
-                if (active_overlay_ == OverlayType::NONE) {
-                    unsigned int seed = world_x * 73856093 ^ world_y * 19349663 ^ z_layer * 83492791;
-                    int var = (seed % 20) - 10;
-                    if (mat != world::Material::AIR && mat != world::Material::WATER) {
-                        color.r = (unsigned char)std::clamp(color.r + var, 0, 255);
-                        color.g = (unsigned char)std::clamp(color.g + var, 0, 255);
-                        color.b = (unsigned char)std::clamp(color.b + var, 0, 255);
-                    }
-                }
-                
-                DrawRectangle(world_x * tile, world_y * tile, tile, tile, color);
             }
         }
         
