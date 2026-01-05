@@ -141,9 +141,9 @@ int main() {
   world::TerrainGenerator terrain_gen(terrain_config);
   
   world::ChunkManagerConfig chunk_config;
-  chunk_config.load_radius = 2;      // 5x5x5 = 125 chunks around camera
-  chunk_config.unload_radius = 3;    // Keep nearby chunks cached  
-  chunk_config.max_loaded = 150;     // More chunks for better coverage
+  chunk_config.load_radius = 3;      // 7x7x7 = 343 chunks around camera (better coverage)
+  chunk_config.unload_radius = 4;    // Keep nearby chunks cached  
+  chunk_config.max_loaded = 250;     // More chunks for zoomed-out views
   chunk_config.save_path = "./world_data/";  // Disk streaming path
   world::ChunkManager chunk_manager(chunk_config);
   

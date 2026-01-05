@@ -535,8 +535,16 @@ void main() {
     float dens;
     float temp;
     
-    // Altitude-based temperature (lapse rate: -6.5°C per 1000m, we use ~0.1°C per block)
-    float altitude_temp = 288.0 - (wz - sea_level) * 0.1;
+    // Altitude-based temperature (lapse rate: ~0.5°C per block = aggressive for game scale)
+    // Sea level (Z=50): 288K (15°C)
+    // Ice line (Z=75): 288 - 25*0.5 = 275.5K (2.5°C) -> ice forms above this
+    float altitude_temp = 288.0 - (wz - sea_level) * 0.5;
+    altitude_temp = max(233.0, altitude_temp);  // Min -40°C
+    
+    // Altitude-based air density (barometric formula)
+    // Density decreases ~12% per 1000m, we use ~1% per block
+    float altitude_factor = exp(-max(0.0, wz - sea_level) * 0.01);
+    float air_density = 1.225 * altitude_factor;
     
     if (wz >= float(surface_z)) {
         // Above terrain surface
@@ -549,11 +557,11 @@ void main() {
             // River channel
             mat_id = 10u; // WATER
             dens = 1000.0;
-            temp = altitude_temp;
+            temp = max(273.5, altitude_temp);  // Rivers don't freeze solid
         } else {
             // Air above surface
             mat_id = 0u;
-            dens = 1.225;
+            dens = air_density;  // Decreases with altitude
             temp = altitude_temp;
         }
     } else {
