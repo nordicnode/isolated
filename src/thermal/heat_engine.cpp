@@ -64,24 +64,24 @@ void ThermalEngine::step_conduction(double dt) {
   const double dx2 = config_.dx * config_.dx;
 
 #pragma omp parallel for collapse(3)
-  for (size_t z = 0; z < config_.nz; ++z) {
-    for (size_t y = 1; y < config_.ny - 1; ++y) {
-      for (size_t x = 1; x < config_.nx - 1; ++x) {
-        size_t i = idx(x, y, z);
+  for (int z = 0; z < static_cast<int>(config_.nz); ++z) {
+    for (int y = 1; y < static_cast<int>(config_.ny) - 1; ++y) {
+      for (int x = 1; x < static_cast<int>(config_.nx) - 1; ++x) {
+        size_t i = idx(static_cast<size_t>(x), static_cast<size_t>(y), static_cast<size_t>(z));
 
         double alpha = k_[i] / (rho_[i] * cp_[i]);
 
         // 6-point stencil (3D Laplacian)
         double laplacian =
-            (temperature_[idx(x + 1, y, z)] + temperature_[idx(x - 1, y, z)] +
-             temperature_[idx(x, y + 1, z)] + temperature_[idx(x, y - 1, z)] -
+            (temperature_[idx(static_cast<size_t>(x + 1), static_cast<size_t>(y), static_cast<size_t>(z))] + temperature_[idx(static_cast<size_t>(x - 1), static_cast<size_t>(y), static_cast<size_t>(z))] +
+             temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y + 1), static_cast<size_t>(z))] + temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y - 1), static_cast<size_t>(z))] -
              4.0 * temperature_[i]) /
             dx2;
 
         // Add z-direction if 3D
         if (config_.nz > 1 && z > 0 && z < config_.nz - 1) {
           laplacian +=
-              (temperature_[idx(x, y, z + 1)] + temperature_[idx(x, y, z - 1)] -
+              (temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y), static_cast<size_t>(z + 1))] + temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y), static_cast<size_t>(z - 1))] -
                2.0 * temperature_[i]) /
               dx2;
         }
@@ -93,7 +93,7 @@ void ThermalEngine::step_conduction(double dt) {
 
 // Apply temperature changes
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     temperature_[i] += dT[i];
   }
 }
@@ -105,7 +105,7 @@ void ThermalEngine::step_radiation(double dt) {
   double *__restrict dT = temp_buffer_.data();
 
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     double T = temperature_[i];
     if (T < config_.radiation_threshold)
       continue;
@@ -126,7 +126,7 @@ void ThermalEngine::step_radiation(double dt) {
   }
 
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     temperature_[i] += dT[i];
   }
 }
@@ -137,24 +137,24 @@ void ThermalEngine::step_advection(double dt) {
   double *__restrict dT = temp_buffer_.data();
 
 #pragma omp parallel for collapse(3)
-  for (size_t z = 0; z < config_.nz; ++z) {
-    for (size_t y = 1; y < config_.ny - 1; ++y) {
-      for (size_t x = 1; x < config_.nx - 1; ++x) {
-        size_t i = idx(x, y, z);
+  for (int z = 0; z < static_cast<int>(config_.nz); ++z) {
+    for (int y = 1; y < static_cast<int>(config_.ny) - 1; ++y) {
+      for (int x = 1; x < static_cast<int>(config_.nx) - 1; ++x) {
+        size_t i = idx(static_cast<size_t>(x), static_cast<size_t>(y), static_cast<size_t>(z));
 
         double ux = fluid_ux_[i];
         double uy = fluid_uy_[i];
 
         // Upwind advection
         double dTdx = (ux > 0)
-                          ? (temperature_[i] - temperature_[idx(x - 1, y, z)]) /
+                          ? (temperature_[i] - temperature_[idx(static_cast<size_t>(x - 1), static_cast<size_t>(y), static_cast<size_t>(z))]) /
                                 config_.dx
-                          : (temperature_[idx(x + 1, y, z)] - temperature_[i]) /
+                          : (temperature_[idx(static_cast<size_t>(x + 1), static_cast<size_t>(y), static_cast<size_t>(z))] - temperature_[i]) /
                                 config_.dx;
         double dTdy = (uy > 0)
-                          ? (temperature_[i] - temperature_[idx(x, y - 1, z)]) /
+                          ? (temperature_[i] - temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y - 1), static_cast<size_t>(z))]) /
                                 config_.dx
-                          : (temperature_[idx(x, y + 1, z)] - temperature_[i]) /
+                          : (temperature_[idx(static_cast<size_t>(x), static_cast<size_t>(y + 1), static_cast<size_t>(z))] - temperature_[i]) /
                                 config_.dx;
 
         dT[i] = -(ux * dTdx + uy * dTdy) * dt;
@@ -163,14 +163,14 @@ void ThermalEngine::step_advection(double dt) {
   }
 
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     temperature_[i] += dT[i];
   }
 }
 
 void ThermalEngine::step_sources(double dt) {
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (heat_sources_[i] != 0.0) {
       double rho_cp = rho_[i] * cp_[i];
       if (rho_cp > 0) {
@@ -182,7 +182,7 @@ void ThermalEngine::step_sources(double dt) {
 
 void ThermalEngine::apply_decay_heat(double dt) {
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (decay_heat_[i] > 0.0) {
       double rho_cp = rho_[i] * cp_[i];
       if (rho_cp > 0) {
@@ -194,7 +194,7 @@ void ThermalEngine::apply_decay_heat(double dt) {
 
 void ThermalEngine::step_phase_change(double dt) {
 #pragma omp parallel for
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     const auto &mat_name = material_list_[material_id_[i]];
     auto it = MATERIALS.find(mat_name);
     if (it == MATERIALS.end())

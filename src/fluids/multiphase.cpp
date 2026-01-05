@@ -3,6 +3,7 @@
  * @brief Implementation of multi-phase physics systems.
  */
 
+#define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
 #include <isolated/fluids/multiphase.hpp>

@@ -86,7 +86,7 @@ LBMEngine::LBMEngine(const LBMConfig &config) : config_(config) {
 void LBMEngine::initialize_uniform(
     const std::unordered_map<std::string, double> &fractions) {
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     rho_[i] = 1.0;
     ux_[i] = uy_[i] = uz_[i] = 0.0;
 
@@ -166,14 +166,13 @@ void LBMEngine::compute_macroscopic() {
   double *__restrict uz = uz_.data();
 
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (solid[i])
       continue;
 
     double r = 0.0, vx = 0.0, vy = 0.0, vz = 0.0;
 
 // Unrolled loop with direct array access
-#pragma omp simd reduction(+ : r, vx, vy, vz)
     for (int q = 0; q < 19; ++q) {
       double fq = f_[q][i];
       r += fq;
@@ -200,7 +199,7 @@ void LBMEngine::collide_bgk() {
   const double *__restrict vz = uz_.data();
 
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (solid[i])
       continue;
 
@@ -227,7 +226,7 @@ void LBMEngine::collide_mrt() {
   const double *__restrict nu_t = config_.enable_les ? nu_t_.data() : nullptr;
 
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (solid[i])
       continue;
 
@@ -258,16 +257,16 @@ void LBMEngine::stream() {
 
   // Optimized streaming with precomputed neighbor indices
 #pragma omp parallel for collapse(2) schedule(static)
-  for (size_t y = 0; y < ny; ++y) {
-    for (size_t x = 0; x < nx; ++x) {
-      for (size_t z = 0; z < nz; ++z) {
-        const size_t i = x + nx * (y + ny * z);
+  for (int y = 0; y < static_cast<int>(ny); ++y) {
+    for (int x = 0; x < static_cast<int>(nx); ++x) {
+      for (int z = 0; z < static_cast<int>(nz); ++z) {
+        const size_t i = static_cast<size_t>(x) + nx * (static_cast<size_t>(y) + ny * static_cast<size_t>(z));
 
         for (int q = 0; q < 19; ++q) {
           // Pull scheme: where did this distribution come from?
-          size_t sx = (x + nx - CX[q]) % nx;
-          size_t sy = (y + ny - CY[q]) % ny;
-          size_t sz = (z + nz - CZ[q]) % nz;
+          size_t sx = (static_cast<size_t>(x) + nx - static_cast<size_t>(CX[q])) % nx;
+          size_t sy = (static_cast<size_t>(y) + ny - static_cast<size_t>(CY[q])) % ny;
+          size_t sz = (static_cast<size_t>(z) + nz - static_cast<size_t>(CZ[q])) % nz;
           size_t j = sx + nx * (sy + ny * sz);
 
           f_tmp_[q][i] = f_[q][j];
@@ -284,7 +283,7 @@ void LBMEngine::apply_boundary_conditions() {
   const uint8_t *__restrict solid = solid_.data();
 
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     if (!solid[i])
       continue;
 
@@ -307,7 +306,7 @@ void LBMEngine::compute_turbulent_viscosity() {
   double *__restrict nu_t = nu_t_.data();
 
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     const double r = rho_ptr[i];
     const double ux = vx[i], uy = vy[i], uz = vz[i];
     const double u2 = ux * ux + uy * uy + uz * uz;
@@ -350,10 +349,9 @@ double LBMEngine::get_species_density(const std::string &name, size_t x,
 
 double LBMEngine::compute_cfl() const {
   double max_u = 0.0;
-#pragma omp parallel for reduction(max : max_u)
-  for (size_t i = 0; i < n_cells_; ++i) {
+  for (int i = 0; i < static_cast<int>(n_cells_); ++i) {
     double u = std::sqrt(ux_[i] * ux_[i] + uy_[i] * uy_[i] + uz_[i] * uz_[i]);
-    max_u = std::max(max_u, u);
+    if (u > max_u) max_u = u;
   }
   return max_u * config_.dt / config_.dx;
 }

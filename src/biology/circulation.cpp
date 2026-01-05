@@ -3,6 +3,7 @@
  * @brief Implementation of the cardiovascular model.
  */
 
+#define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
 #include <isolated/biology/circulation.hpp>
