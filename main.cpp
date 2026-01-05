@@ -19,6 +19,7 @@
 #include <isolated/entities/entity_manager.hpp>
 #include <isolated/entities/needs_system.hpp>
 #include <isolated/entities/metabolism_system.hpp>
+#include <isolated/core/lod_zone_manager.hpp>
 
 using namespace isolated;
 
@@ -99,6 +100,15 @@ int main() {
   entity_manager.spawn_astronaut(100, 100, 0, "Commander");
   
   std::cout << "[OK] ECS: EnTT initialized, 3 astronauts spawned" << std::endl;
+  
+  // Initialize LOD Zone Manager for physics optimization (Temporal slicing)
+  core::LODConfig lod_config;
+  lod_config.nx = 200;
+  lod_config.ny = 200;
+  lod_config.num_regions = 4;      // Grid divided into 4 quadrants
+  lod_config.viewport_padding = 50; // Cells around camera always update
+  core::LODZoneManager lod_manager(lod_config);
+  std::cout << "[OK] LOD: Temporal slicing (4 regions, viewport priority)" << std::endl;
 
   std::cout << std::endl;
   std::cout << "=== Simulation Running ===" << std::endl;
@@ -178,7 +188,21 @@ int main() {
     const int max_steps_per_frame = 10; // Prevent spiral of death
     
     while (accumulator >= fixed_dt && steps_this_frame < max_steps_per_frame) {
+      // Update LOD viewport from camera (temporal slicing)
+      if (steps_this_frame == 0) {
+        const Camera2D& cam = game_renderer.get_camera();
+        int cam_x = static_cast<int>(cam.target.x / 4); // Convert to grid coords
+        int cam_y = static_cast<int>(cam.target.y / 4);
+        core::ViewportBounds vp;
+        vp.x_min = std::max(0, cam_x - 50);
+        vp.x_max = std::min(199, cam_x + 50);
+        vp.y_min = std::max(0, cam_y - 50);
+        vp.y_max = std::min(199, cam_y + 50);
+        lod_manager.set_viewport(vp);
+      }
+      
       // All physics systems run every step (GPU accelerated when available)
+      // TODO: Pass lod_manager to engines for per-cell LOD skipping
       fluids.step(fixed_dt);
       thermal.step(fixed_dt);
       circulation.step(fixed_dt);
