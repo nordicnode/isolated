@@ -30,6 +30,7 @@ entt::entity EntityManager::spawn_astronaut(float x, float y, int z,
   
   registry_.emplace<Renderable>(entity, '@', color);
   registry_.emplace<Needs>(entity); // Default needs (full O2, hunger, thirst)
+  registry_.emplace<Metabolism>(entity); // Default metabolism (2000 kcal, 80W)
 
   return entity;
 }

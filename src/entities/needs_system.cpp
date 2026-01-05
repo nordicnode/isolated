@@ -41,6 +41,26 @@ void NeedsSystem::update(double dt, entt::registry& registry, fluids::LBMEngine&
             needs.oxygen = std::max(0.0f, needs.oxygen - O2_CONSUMPTION_RATE * deficit * dt_f * 10.0f);
         }
         
+        // === Hydration (Thirst) ===
+        // Base consumption for living
+        float thirst_rate = 0.005f; // % per second base
+        
+        // Scale by metabolic activity (Sweating)
+        if (auto* metab = registry.try_get<Metabolism>(entity)) {
+            // Assume 80W is resting. Higher watts = more sweat.
+            // Simplified sweat factor
+            float activity_factor = metab->metabolic_rate_watts / 80.0f;
+            thirst_rate *= activity_factor;
+            
+            // Add temp penalty if overheating (simplified)
+            if (metab->core_temperature > 311.15f) { // >38C
+                thirst_rate *= 2.0f;
+            }
+        }
+        
+        // Water drains over time
+        needs.thirst = std::max(0.0f, needs.thirst - thirst_rate * dt_f * 0.1f); // Scaled down for playability
+        
         // Note: CO2 exhale would require modifying the LBM grid which needs additional API
         // For now, we just track hypoxia based on ambient O2
         

@@ -72,6 +72,16 @@ public:
   void register_entity_heat(const std::string &id, size_t x, size_t y, size_t z,
                             double watts);
   void set_radioactive_ore(size_t x, size_t y, size_t z, double watts_per_m3);
+  
+  /**
+   * @brief Injects a transient pulse of energy into a cell.
+   * Used for biological heat, explosions, etc.
+   * @param x Grid X
+   * @param y Grid Y
+   * @param z Grid Z
+   * @param joules Energy added in Joules (Watts * dt)
+   */
+  void inject_heat(size_t x, size_t y, size_t z, double joules);
 
   // Fluid coupling
   void set_fluid_velocity(size_t x, size_t y, size_t z, double ux, double uy);

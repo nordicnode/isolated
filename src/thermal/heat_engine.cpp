@@ -300,6 +300,21 @@ void ThermalEngine::set_radioactive_ore(size_t x, size_t y, size_t z,
   decay_heat_[idx(x, y, z)] = watts_per_m3;
 }
 
+void ThermalEngine::inject_heat(size_t x, size_t y, size_t z, double joules) {
+  size_t i = idx(x, y, z);
+  double volume = config_.dx * config_.dx * config_.dx; // m3
+  if (config_.nz == 1) volume = config_.dx * config_.dx * 1.0; // 2D approx
+  
+  double mass = rho_[i] * volume;
+  double heat_capacity = mass * cp_[i];
+  
+  // dT = Q / (m * cp)
+  if (heat_capacity > 1e-6) {
+      double dT = joules / heat_capacity;
+      temperature_[i] += dT;
+  }
+}
+
 void ThermalEngine::set_fluid_velocity(size_t x, size_t y, size_t z, double ux,
                                        double uy) {
   size_t i = idx(x, y, z);

@@ -71,5 +71,15 @@ struct Needs {
   HypoxiaState hypoxia_state = HypoxiaState::NORMAL;
 };
 
+/**
+ * @brief Metabolic engine for "Life is Slow Combustion".
+ */
+struct Metabolism {
+  float caloric_balance = 2000.0f; // kcal available (Energy buffer)
+  float metabolic_rate_watts = 80.0f; // Base heat output (BMR + Activity)
+  float core_temperature = 310.15f; // 37.0 C
+  float insulation = 0.5f; // Clo units (0.5 = light clothing)
+};
+
 } // namespace entities
 } // namespace isolated

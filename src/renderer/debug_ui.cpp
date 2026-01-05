@@ -113,7 +113,7 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
                            entt::registry* registry,
                            entt::entity selected_entity) {
   // Fixed left sidebar
-  float sidebar_width = 220.0f;
+  float sidebar_width = 250.0f; // Widened for better fit
   ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
   ImGui::SetNextWindowSize(ImVec2(sidebar_width, static_cast<float>(GetScreenHeight())),
                            ImGuiCond_Always);
@@ -218,87 +218,132 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
     // === ENTITY INSPECTOR ===
     if (registry && ImGui::CollapsingHeader("Entity Inspector", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (selected_entity != entt::null && registry->valid(selected_entity)) {
-            ImGui::Text("ID: %d", static_cast<int>(selected_entity));
-            
-            // Name
-            if (auto* astronaut = registry->try_get<entities::Astronaut>(selected_entity)) {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
-                ImGui::Text("Name: %s", astronaut->name.c_str());
-                ImGui::PopStyleColor();
-            } else {
-                ImGui::TextDisabled("Type: Unknown");
-            }
-
-            // Position
-            if (auto* pos = registry->try_get<entities::Position>(selected_entity)) {
-                ImGui::Text("Pos: (%.1f, %.1f, %d)", pos->x, pos->y, pos->z);
-            }
-
-            // Velocity
-            if (auto* vel = registry->try_get<entities::Velocity>(selected_entity)) {
-                ImGui::Text("Vel: (%.3f, %.3f)", vel->dx, vel->dy);
-            }
-            
-            // Color
-            if (auto* render = registry->try_get<entities::Renderable>(selected_entity)) {
-                ImVec4 col(render->color.r/255.f, render->color.g/255.f, render->color.b/255.f, 1.0f);
-                ImGui::ColorButton("##color", col, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(20, 20));
-                ImGui::SameLine();
-                ImGui::Text("Glyph: '%c'", render->glyph);
-            }
-            
-            // Needs (Survival bars)
-            if (auto* needs = registry->try_get<entities::Needs>(selected_entity)) {
-                ImGui::Separator();
-                ImGui::Text("Survival Status");
+            if (ImGui::BeginTabBar("EntityTabs")) {
                 
-                // Hypoxia state label
-                const char* hypoxia_label = "Normal";
-                ImVec4 state_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f); // Green
-                switch (needs->hypoxia_state) {
-                    case entities::HypoxiaState::CONFUSED:
-                        hypoxia_label = "CONFUSED";
-                        state_color = ImVec4(0.9f, 0.7f, 0.1f, 1.0f); // Yellow
-                        break;
-                    case entities::HypoxiaState::COLLAPSED:
-                        hypoxia_label = "COLLAPSED";
-                        state_color = ImVec4(0.9f, 0.3f, 0.1f, 1.0f); // Orange
-                        break;
-                    case entities::HypoxiaState::DEAD:
-                        hypoxia_label = "DEAD";
-                        state_color = ImVec4(0.5f, 0.0f, 0.0f, 1.0f); // Dark Red
-                        break;
-                    default: break;
+                // === TAB 1: OVERVIEW ===
+                if (ImGui::BeginTabItem("Overview")) {
+                    ImGui::Spacing();
+                    // ID & Name
+                    ImGui::Text("ID: %d", static_cast<int>(selected_entity));
+                    if (auto* astronaut = registry->try_get<entities::Astronaut>(selected_entity)) {
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+                        ImGui::Text("Name: %s", astronaut->name.c_str());
+                        ImGui::PopStyleColor();
+                    }
+                    ImGui::Separator();
+                    
+                    // Position
+                    if (auto* pos = registry->try_get<entities::Position>(selected_entity)) {
+                        ImGui::Text("Pos: (%.1f, %.1f, %d)", pos->x, pos->y, pos->z);
+                    }
+
+                    // Velocity
+                    if (auto* vel = registry->try_get<entities::Velocity>(selected_entity)) {
+                        ImGui::Text("Vel: (%.3f, %.3f)", vel->dx, vel->dy);
+                    }
+                    
+                    // Visuals
+                    if (auto* render = registry->try_get<entities::Renderable>(selected_entity)) {
+                        ImGui::Spacing();
+                        ImGui::Text("Appearance:");
+                        ImVec4 col(render->color.r/255.f, render->color.g/255.f, render->color.b/255.f, 1.0f);
+                        ImGui::ColorButton("##color", col, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(30, 30));
+                        ImGui::SameLine();
+                        ImGui::SetWindowFontScale(2.0f); // Big glyph
+                        ImGui::Text("'%c'", render->glyph);
+                        ImGui::SetWindowFontScale(1.0f);
+                    }
+                    ImGui::EndTabItem();
                 }
-                ImGui::TextColored(state_color, "State: %s", hypoxia_label);
+
+                // === TAB 2: SURVIVAL ===
+                if (ImGui::BeginTabItem("Survival")) {
+                     if (auto* needs = registry->try_get<entities::Needs>(selected_entity)) {
+                        ImGui::Spacing();
+                        
+                        // Hypoxia Status
+                        ImGui::Text("Status:");
+                        ImGui::SameLine();
+                        const char* hypoxia_label = "Healthy";
+                        ImVec4 state_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f); // Green
+
+                        switch (needs->hypoxia_state) {
+                            case entities::HypoxiaState::CONFUSED:
+                                hypoxia_label = "CONFUSED";
+                                state_color = ImVec4(0.9f, 0.7f, 0.1f, 1.0f);
+                                break;
+                            case entities::HypoxiaState::COLLAPSED:
+                                hypoxia_label = "COLLAPSED";
+                                state_color = ImVec4(0.9f, 0.3f, 0.1f, 1.0f);
+                                break;
+                            case entities::HypoxiaState::DEAD:
+                                hypoxia_label = "DEAD";
+                                state_color = ImVec4(0.5f, 0.0f, 0.0f, 1.0f);
+                                break;
+                            default: break;
+                        }
+                        ImGui::TextColored(state_color, "%s", hypoxia_label);
+                        ImGui::Separator();
+
+                        // Needs Bars
+                        char buf[32];
+                        
+                        // Helper to draw bar with better label contrast
+                        auto draw_bar = [](const char* label, float val, ImVec4 color) {
+                            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
+                            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1,1,1,1)); // Force white text
+                            char b[32];
+                            snprintf(b, 32, "%s: %.0f%%", label, val * 100.0f);
+                            ImGui::ProgressBar(val, ImVec2(-1, 18), b); // Taller bar
+                            ImGui::PopStyleColor(2);
+                        };
+
+                        draw_bar("O2", needs->oxygen, ImVec4(0.0f, 0.7f, 0.8f, 1.0f));
+                        ImGui::Spacing();
+                        draw_bar("Food", needs->hunger, ImVec4(0.8f, 0.5f, 0.0f, 1.0f));
+                        ImGui::Spacing();
+                        draw_bar("H2O", needs->thirst, ImVec4(0.1f, 0.4f, 0.8f, 1.0f));
+                        ImGui::Spacing();
+                        draw_bar("Energy", 1.0f - needs->fatigue, ImVec4(0.8f, 0.8f, 0.1f, 1.0f));
+                    } else {
+                        ImGui::TextDisabled("No Needs Component");
+                    }
+                    ImGui::EndTabItem();
+                }
                 
-                // O2 bar (cyan)
-                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.0f, 0.8f, 0.9f, 1.0f));
-                ImGui::ProgressBar(needs->oxygen, ImVec2(-1, 12), "");
-                ImGui::SameLine(0, 5);
-                ImGui::Text("O2: %.0f%%", needs->oxygen * 100.0f);
-                ImGui::PopStyleColor();
-                
-                // Hunger bar (orange)
-                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.9f, 0.6f, 0.1f, 1.0f));
-                ImGui::ProgressBar(needs->hunger, ImVec2(-1, 12), "");
-                ImGui::SameLine(0, 5);
-                ImGui::Text("Hunger: %.0f%%", needs->hunger * 100.0f);
-                ImGui::PopStyleColor();
-                
-                // Thirst bar (blue)
-                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.5f, 0.9f, 1.0f));
-                ImGui::ProgressBar(needs->thirst, ImVec2(-1, 12), "");
-                ImGui::SameLine(0, 5);
-                ImGui::Text("Thirst: %.0f%%", needs->thirst * 100.0f);
-                ImGui::PopStyleColor();
-                
-                // Fatigue bar (yellow, inverted - low is good)
-                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.9f, 0.9f, 0.2f, 1.0f));
-                ImGui::ProgressBar(1.0f - needs->fatigue, ImVec2(-1, 12), "");
-                ImGui::SameLine(0, 5);
-                ImGui::Text("Energy: %.0f%%", (1.0f - needs->fatigue) * 100.0f);
-                ImGui::PopStyleColor();
+                // === TAB 3: BIO (Metabolism) ===
+                if (ImGui::BeginTabItem("Bio")) {
+                    if (auto* metab = registry->try_get<entities::Metabolism>(selected_entity)) {
+                        ImGui::Spacing();
+                        // Core Temp
+                        ImGui::Text("Core Temp: %.1f C", metab->core_temperature - 273.15f);
+                        
+                        // Metabolic Rate
+                        ImGui::SameLine();
+                        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), "(%.0f W)", metab->metabolic_rate_watts);
+                        
+                        // Caloric Balance
+                        ImGui::Spacing();
+                        ImGui::Text("Caloric Reserve:");
+                        float kcal = metab->caloric_balance;
+                        
+                        // Determine color based on reserve
+                        ImVec4 kcal_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f); // Green
+                        if (kcal < 500) kcal_color = ImVec4(0.9f, 0.2f, 0.2f, 1.0f); // Red
+                        else if (kcal < 1000) kcal_color = ImVec4(0.9f, 0.8f, 0.2f, 1.0f); // Yellow
+                        
+                        ImGui::TextColored(kcal_color, "%.0f kcal", kcal);
+                        ImGui::ProgressBar(std::clamp(kcal / 3000.0f, 0.0f, 1.0f), ImVec2(-1, 6), "");
+                        
+                        ImGui::Spacing();
+                        ImGui::TextDisabled("Insulation: %.1f clo", metab->insulation);
+                    } else {
+                        ImGui::TextDisabled("No Metabolism Component");
+                    }
+                    ImGui::EndTabItem();
+                }
+
+                ImGui::EndTabBar();
             }
 
         } else {
