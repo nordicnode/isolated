@@ -19,6 +19,7 @@
 
 #include <isolated/core/constants.hpp>
 #include <isolated/thermal/materials.hpp>
+#include <isolated/thermal/thermal_cuda.cuh>
 
 namespace isolated {
 namespace thermal {
@@ -44,6 +45,7 @@ struct ThermalConfig {
   double dx = 1.0;
   bool enable_radiation = true;
   double radiation_threshold = 500.0; // K - only radiate above this
+  bool use_gpu = false; // Use GPU compute if available
 };
 
 /**
@@ -124,6 +126,10 @@ private:
   // Reusable temp buffers (avoid heap allocation in hot loops)
   std::vector<double> temp_buffer_;
   std::vector<double> temp_buffer2_;
+  
+  // GPU buffers (used when config_.use_gpu = true)
+  cuda::ThermalDeviceBuffers gpu_buffers_;
+  bool gpu_initialized_ = false;
 
   // Internal methods
   size_t idx(size_t x, size_t y, size_t z) const;

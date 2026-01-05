@@ -45,16 +45,34 @@ ThermalEngine::ThermalEngine(const ThermalConfig &config) : config_(config) {
 }
 
 void ThermalEngine::step(double dt) {
-  step_conduction(dt);
-  step_advection(dt);
-  step_sources(dt);
-  apply_decay_heat(dt);
+  if (config_.use_gpu) {
+    // GPU Path: Initialize buffers on first use
+    if (!gpu_initialized_) {
+      gpu_buffers_.allocate(n_cells_, config_.nx, config_.ny, config_.nz, config_.dx);
+      cuda::copy_to_device(gpu_buffers_, temperature_, k_, cp_, rho_, heat_sources_);
+      gpu_initialized_ = true;
+    }
+    
+    // Run GPU kernels
+    cuda::launch_conduction_step(gpu_buffers_, dt);
+    cuda::launch_sources_step(gpu_buffers_, dt);
+    cuda::device_synchronize();
+    
+    // Copy back for CPU access (only when needed, e.g., for rendering)
+    cuda::copy_from_device(gpu_buffers_, temperature_);
+  } else {
+    // CPU Path (original)
+    step_conduction(dt);
+    step_advection(dt);
+    step_sources(dt);
+    apply_decay_heat(dt);
 
-  if (config_.enable_radiation) {
-    step_radiation(dt);
+    if (config_.enable_radiation) {
+      step_radiation(dt);
+    }
+
+    step_phase_change(dt);
   }
-
-  step_phase_change(dt);
 }
 
 void ThermalEngine::step_conduction(double dt) {
