@@ -124,5 +124,30 @@ private:
     bool swap_buffers_ = false;
 };
 
+
+
+/**
+ * @brief GPU-based Terrain Generator using Compute Shaders.
+ */
+class TerrainComputeKernel {
+public:
+    bool init(size_t chunk_size = 64);
+    void generate_chunk(int world_x, int world_y, int world_z, double seed);
+    void download_chunk(std::vector<uint8_t>& material, 
+                        std::vector<double>& temperature,
+                        std::vector<double>& density);
+    void destroy();
+
+private:
+    ComputeShader shader_;
+    
+    // Output buffers
+    GPUBuffer material_buffer_;     // uint8_t (but aligned to uint on GPU side)
+    GPUBuffer temperature_buffer_;  // float
+    GPUBuffer density_buffer_;      // float
+    
+    size_t chunk_size_ = 64;
+};
+
 } // namespace gpu
 } // namespace isolated

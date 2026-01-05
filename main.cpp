@@ -145,9 +145,33 @@ int main() {
   chunk_config.max_loaded = 50;    // Limit memory usage
   world::ChunkManager chunk_manager(chunk_config);
   
+  // Initialize GPU Terrain Generator
+  static gpu::TerrainComputeKernel gpu_terrain;
+  bool gpu_terrain_ready = gpu_terrain.init(64); // 64^3 chunk size
+  if (gpu_terrain_ready) {
+      std::cout << "[OK] GPU: Terrain compute kernel ready" << std::endl;
+  } else {
+      std::cout << "[WARN] GPU: Terrain compute failed, using CPU fallback" << std::endl;
+  }
+  
   // Wire terrain generator into chunk manager
-  chunk_manager.set_terrain_generator([&terrain_gen](world::Chunk& chunk) {
-      terrain_gen.generate(chunk);
+  chunk_manager.set_terrain_generator([&terrain_gen, gpu_terrain_ready](world::Chunk& chunk) {
+      if (gpu_terrain_ready) {
+          auto [ox, oy, oz] = chunk.world_origin();
+          // Use chunk origin for coordinate inputs
+          gpu_terrain.generate_chunk(ox, oy, oz, 42.0); // Seed 42
+          
+          // Download to temp buffer and cast to Material enum
+          std::vector<uint8_t> mat_raw(world::CHUNK_SIZE * world::CHUNK_SIZE * world::CHUNK_SIZE);
+          gpu_terrain.download_chunk(mat_raw, chunk.temperature, chunk.density);
+          
+          for(size_t i=0; i < mat_raw.size(); ++i) {
+             chunk.material[i] = static_cast<world::Material>(mat_raw[i]);
+          }
+          chunk.generated = true;
+      } else {
+          terrain_gen.generate(chunk);
+      }
   });
   
   // Pre-load chunks around origin
@@ -296,7 +320,9 @@ int main() {
 
     // Render
     game_renderer.begin_frame();
-    game_renderer.draw_grid(fluids, thermal);
+    // Draw 3D chunk world instead of flat grid
+    game_renderer.draw_chunks(&chunk_manager); 
+    // game_renderer.draw_grid(fluids, thermal); // Disable old flat grid
     game_renderer.draw_entities(&entity_manager.registry());
 
     // Exit camera mode for ImGui (screen-space rendering)

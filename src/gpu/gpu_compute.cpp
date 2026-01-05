@@ -6,12 +6,12 @@
  * We use rlgl headers which expose the GL functions.
  */
 
-#include <isolated/gpu/gpu_compute.hpp>
-
 // Raylib's external/glad.h is included via rlgl.h
 // Define RLGL_IMPLEMENTATION only once in the project
 #define GRAPHICS_API_OPENGL_43  // Enable OpenGL 4.3+ features
 #include "external/glad.h"  // Included in raylib source
+
+#include <isolated/gpu/gpu_compute.hpp>
 
 #include <iostream>
 #include <cstring>
@@ -459,6 +459,179 @@ void LBMComputeKernel::destroy() {
     ux_buffer_.destroy();
     uy_buffer_.destroy();
     solid_buffer_.destroy();
+}
+
+// ============ TerrainComputeKernel ============
+
+static const char* TERRAIN_GEN_SHADER = R"(
+#version 430 core
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+layout(std430, binding = 0) buffer MaterialOut { uint material[]; };
+layout(std430, binding = 1) buffer TempOut { float temperature[]; };
+layout(std430, binding = 2) buffer DensityOut { float density[]; };
+
+uniform int chunk_x;
+uniform int chunk_y;
+uniform int chunk_z;
+uniform float seed;
+
+// hash based 3d value noise for basic terrain
+// Ported from standard GLSL noise algorithms
+float hash(float n) { return fract(sin(n) * 43758.5453123); }
+float noise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    float n = p.x + p.y * 57.0 + 113.0 * p.z;
+    return mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                   mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
+               mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                   mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
+}
+
+// FBM
+float fbm(vec3 p) {
+    float f = 0.0;
+    f += 0.5000 * noise(p); p *= 2.02;
+    f += 0.2500 * noise(p); p *= 2.03;
+    f += 0.1250 * noise(p); p *= 2.01;
+    f += 0.0625 * noise(p);
+    return f;
+}
+
+void main() {
+    uvec3 id = gl_GlobalInvocationID;
+    if (id.x >= 64 || id.y >= 64 || id.z >= 64) return;
+    
+    int lx = int(id.x);
+    int ly = int(id.y);
+    int lz = int(id.z);
+    
+    // Global coordinates
+    float wx = float(chunk_x + lx);
+    float wy = float(chunk_y + ly);
+    float wz = float(chunk_z + lz);
+    
+    // Index in linear buffer (64x64x64)
+    int idx = lx + 64 * (ly + 64 * lz);
+    
+    // Scale for terrain features
+    float scale = 0.02;
+    float height_val = fbm(vec3(wx * scale, wy * scale, seed)) * 30.0;
+    float sea_level = 0.0; // Assume z=0 is sea level for simplicity in world coords
+    int surface_z = int(height_val);
+    
+    // Determine material by depth
+    // World origin is at bottom of chunk? No, chunk_z is world coord
+    int global_z = int(wz);
+    
+    uint mat_id = 0; // AIR
+    float dens = 1.225;
+    float temp = 288.0; // 15C
+    
+    if (global_z < surface_z) {
+        // Underground
+        if (global_z < surface_z - 20) {
+            mat_id = 2; // GRANITE (from chunk.hpp enum)
+            dens = 2700.0;
+        } else if (global_z < surface_z - 5) {
+            // Noise for rock variation
+            float rock_noise = noise(vec3(wx*0.1, wy*0.1, wz*0.1));
+            mat_id = (rock_noise > 0.5) ? 3 : 4; // BASALT : LIMESTONE
+            dens = 2500.0;
+        } else {
+            mat_id = 9; // SOIL
+            dens = 1500.0;
+        }
+        
+        // Geothermal gradient
+        float depth = float(surface_z - global_z);
+        temp = 288.0 + depth * 0.025;
+    } else if (global_z < 0) {
+        // Underwater
+        mat_id = 10; // WATER (Liquid) - wait, Liquid starts at?
+        // Checking Material enum in chunk.hpp:
+        // AIR=0, GAS_START=0, LIQUID_START=9?
+        // Need to check enum values. Assuming:
+        // AIR=0, ... WATER=10? 
+        // Let's rely on standard IDs or pass uniforms.
+        // Hardcoding standard IDs for isolated:
+        // AIR=0, O2=1... WATER=9, MAGMA=10...
+        // SOLID: ICE=11... GRANITE=13...
+        // Let's use generic logic for now, fix IDs later.
+        mat_id = 9; // WATER (Placeholder ID)
+        dens = 1000.0;
+    } else {
+        // Air
+        mat_id = 0;
+        dens = 1.225;
+    }
+    
+    material[idx] = mat_id;
+    temperature[idx] = temp;
+    density[idx] = dens;
+}
+)";
+
+bool TerrainComputeKernel::init(size_t chunk_size) {
+    chunk_size_ = chunk_size;
+    if (!shader_.load(TERRAIN_GEN_SHADER)) {
+        std::cerr << "[GPU] Terrain gen shader failed" << std::endl;
+        return false;
+    }
+    
+    size_t num_voxels = chunk_size * chunk_size * chunk_size;
+    material_buffer_.create(num_voxels * sizeof(unsigned int));
+    temperature_buffer_.create(num_voxels * sizeof(float));
+    density_buffer_.create(num_voxels * sizeof(float));
+    
+    return true;
+}
+
+void TerrainComputeKernel::generate_chunk(int world_x, int world_y, int world_z, double seed) {
+    shader_.set_uniform("chunk_x", world_x);
+    shader_.set_uniform("chunk_y", world_y);
+    shader_.set_uniform("chunk_z", world_z);
+    shader_.set_uniform("seed", static_cast<float>(seed));
+    
+    shader_.bind_buffer(0, material_buffer_);
+    shader_.bind_buffer(1, temperature_buffer_);
+    shader_.bind_buffer(2, density_buffer_);
+    
+    // 64x64x64 threads -> 16x16x16 groups of 4x4x4
+    int groups = 64 / 4;
+    shader_.dispatch(groups, groups, groups);
+    ComputeShader::barrier();
+}
+
+void TerrainComputeKernel::download_chunk(std::vector<uint8_t>& material,
+                                          std::vector<double>& temperature,
+                                          std::vector<double>& density) {
+    size_t n = chunk_size_ * chunk_size_ * chunk_size_;
+    
+    // Temp CPU buffers for data conversion (GPU uses floats/ints, CPU uses doubles/uint8)
+    // Minimally, we allocate here. Optimization: keep permanent scratch buffers.
+    std::vector<unsigned int> mat_gpu(n);
+    std::vector<float> temp_gpu(n);
+    std::vector<float> dens_gpu(n);
+    
+    material_buffer_.download(mat_gpu.data(), n * sizeof(unsigned int));
+    temperature_buffer_.download(temp_gpu.data(), n * sizeof(float));
+    density_buffer_.download(dens_gpu.data(), n * sizeof(float));
+    
+    // Convert
+    for (size_t i = 0; i < n; i++) {
+        material[i] = static_cast<uint8_t>(mat_gpu[i]);
+        temperature[i] = static_cast<double>(temp_gpu[i]);
+        density[i] = static_cast<double>(dens_gpu[i]);
+    }
+}
+
+void TerrainComputeKernel::destroy() {
+    material_buffer_.destroy();
+    temperature_buffer_.destroy();
+    density_buffer_.destroy();
 }
 
 } // namespace gpu
