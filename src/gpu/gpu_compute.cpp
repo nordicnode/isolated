@@ -520,15 +520,15 @@ void main() {
     base_height += noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 8.0;
     int surface_z = int(sea_level + base_height);
     
-    // === LAKE/OCEAN BASINS (separate noise layer) ===
-    float basin_noise = fbm(vec3(wx * 0.01, wy * 0.01, seed * 5.0));
-    bool is_water_basin = basin_noise < -0.2;  // Low areas become lakes
-    int water_surface = is_water_basin ? int(sea_level - 5.0 + basin_noise * 10.0) : surface_z;
+    // === LAKE/OCEAN BASINS (use regular noise, threshold for ~20% coverage) ===
+    float basin_noise = noise(vec3(wx * 0.008, wy * 0.008, seed * 5.0));
+    bool is_water_basin = basin_noise < 0.35;  // ~35% of terrain is water basins
+    int water_level = int(sea_level - 2.0);  // Water fills to just below sea level
     
-    // === RIVER CHANNELS ===
-    float river_x = noise(vec3(wy * 0.005, seed * 3.0, 0.0));
-    float river_dist = abs(wx * 0.01 - river_x * 50.0);
-    bool is_river = river_dist < 0.3 && wz > float(surface_z) - 3.0 && wz < float(surface_z);
+    // === RIVER CHANNELS (snake through terrain) ===
+    float river_path = sin(wy * 0.02 + noise(vec3(wx * 0.01, wy * 0.01, seed)) * 3.0);
+    float river_width = 2.0 + noise(vec3(wx * 0.05, wy * 0.05, seed * 7.0)) * 2.0;
+    bool is_river = abs(river_path * 50.0 - (wx - 100.0)) < river_width && wz >= float(surface_z) - 2.0 && wz < float(surface_z);
     
     // === DETERMINE MATERIAL ===
     uint mat_id;
@@ -540,11 +540,11 @@ void main() {
     
     if (wz >= float(surface_z)) {
         // Above terrain surface
-        if (wz < sea_level && is_water_basin) {
+        if (wz < float(water_level) && is_water_basin && wz >= float(surface_z)) {
             // Underwater in lake/ocean basin
             mat_id = 10u; // WATER
             dens = 1000.0;
-            temp = max(273.0, altitude_temp);  // Water doesn't freeze below surface
+            temp = max(277.0, altitude_temp);  // Water at 4°C minimum
         } else if (is_river) {
             // River channel
             mat_id = 10u; // WATER
@@ -591,12 +591,12 @@ void main() {
             dens = 2600.0;
         } else {
             // Deep: granite with ores
-            float ore_noise = noise(vec3(wx * 0.15, wy * 0.15, wz * 0.15 + seed * 3.0));
-            if (ore_noise > 0.88) {
-                mat_id = 38u; // IRON_ORE
+            float ore_noise = noise(vec3(wx * 0.12, wy * 0.12, wz * 0.12 + seed * 3.0));
+            if (ore_noise > 0.75) {
+                mat_id = 38u; // IRON_ORE (~25% of deep rock)
                 dens = 5000.0;
-            } else if (ore_noise > 0.84) {
-                mat_id = 39u; // COPPER_ORE
+            } else if (ore_noise > 0.65) {
+                mat_id = 39u; // COPPER_ORE (~10% of deep rock)
                 dens = 4500.0;
             } else {
                 mat_id = 30u; // GRANITE
@@ -608,9 +608,9 @@ void main() {
         temp = altitude_temp + depth * 0.025;
         
         // === CAVE CARVING ===
-        if (depth > 5.0 && depth < 50.0) {
-            float cave_noise = fbm(vec3(wx * 0.05, wy * 0.05, wz * 0.07));
-            if (cave_noise > 0.62) {
+        if (depth > 3.0 && depth < 60.0) {
+            float cave_noise = fbm(vec3(wx * 0.04, wy * 0.04, wz * 0.05));
+            if (cave_noise > 0.52) {  // ~20% caves
                 mat_id = 0u; // AIR
                 dens = 1.225;
                 temp = 290.0 + depth * 0.01;
