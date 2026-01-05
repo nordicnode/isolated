@@ -565,15 +565,15 @@ void main() {
             // Surface material depends on altitude
             if (wz > sea_level + 25.0) {
                 // High altitude: ICE/SNOW
-                mat_id = 11u; // ICE
+                mat_id = 20u; // ICE
                 dens = 917.0;
             } else if (wz > sea_level + 15.0) {
                 // Mountain: STONE exposed
                 mat_id = 30u; // GRANITE
                 dens = 2700.0;
             } else if (is_water_basin && wz >= int(sea_level) - 10) {
-                // Lake bed: SAND
-                mat_id = 36u; // SAND
+                // Lake bed: REGOLITH/SAND
+                mat_id = 36u; // REGOLITH
                 dens = 1600.0;
             } else {
                 // Normal surface: SOIL
@@ -593,10 +593,10 @@ void main() {
             // Deep: granite with ores
             float ore_noise = noise(vec3(wx * 0.12, wy * 0.12, wz * 0.12 + seed * 3.0));
             if (ore_noise > 0.75) {
-                mat_id = 38u; // IRON_ORE (~25% of deep rock)
+                mat_id = 100u; // IRON_ORE (~25% of deep rock)
                 dens = 5000.0;
             } else if (ore_noise > 0.65) {
-                mat_id = 39u; // COPPER_ORE (~10% of deep rock)
+                mat_id = 101u; // COPPER_ORE (~10% of deep rock)
                 dens = 4500.0;
             } else {
                 mat_id = 30u; // GRANITE
