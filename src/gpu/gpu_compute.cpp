@@ -531,16 +531,17 @@ void main() {
     // "Worm" caves using distance from noise surface (creates connected tunnels)
     float worm1 = noise(vec3(wx * 0.035, wy * 0.035, wz * 0.05 + seed));
     float worm2 = noise(vec3(wx * 0.04 + 100.0, wy * 0.04 + seed, wz * 0.045));
-    float worm_dist = abs(worm1 - 0.5) + abs(worm2 - 0.5); // Distance from 0.5 isosurface
-    bool is_worm_cave = worm_dist < 0.12 && global_z < surface_z - 5 && global_z > -80;
+    float worm_dist = abs(worm1 - 0.5) + abs(worm2 - 0.5);
+    // Only carve worm caves if VERY close to isosurface (0.08 = narrow tunnels)
+    bool is_worm_cave = worm_dist < 0.08 && global_z < surface_z - 5 && global_z > surface_z - 40;
     
-    // Large caverns (spherical regions)
+    // Large caverns - more restrictive threshold (0.55 instead of 0.48)
     float cavern1 = fbm(vec3(wx * 0.02, wy * 0.02, wz * 0.015));
-    bool is_cavern = cavern1 > 0.48 && global_z < surface_z - 15 && global_z > -60;
+    bool is_cavern = cavern1 > 0.55 && global_z < surface_z - 10 && global_z > surface_z - 35;
     
-    // Near-surface caves (shallow, common)
+    // Near-surface caves (shallow)
     float shallow = noise(vec3(wx * 0.08, wy * 0.08, wz * 0.06 + seed * 2.0));
-    bool is_shallow_cave = shallow > 0.65 && global_z < surface_z - 3 && global_z > surface_z - 20;
+    bool is_shallow_cave = shallow > 0.72 && global_z < surface_z - 2 && global_z > surface_z - 15;
     
     // Combine cave types
     bool carved = is_worm_cave || is_cavern || is_shallow_cave;
