@@ -206,138 +206,153 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
     
     int tile = config_.tile_size;
     
-    // Get visible chunks
+    // === VIEWPORT-FIRST CULLING ===
+    // Calculate visible world tile range from camera (do this ONCE, not per-tile)
+    Vector2 top_left = GetScreenToWorld2D({0, 0}, camera_);
+    Vector2 bottom_right = GetScreenToWorld2D(
+        {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera_);
+    
+    int view_x_min = (int)floor(top_left.x / tile) - 1;
+    int view_y_min = (int)floor(top_left.y / tile) - 1;
+    int view_x_max = (int)ceil(bottom_right.x / tile) + 1;
+    int view_y_max = (int)ceil(bottom_right.y / tile) + 1;
+    
+    // Get loaded chunks for lookup
     auto chunks = chunk_manager.get_loaded_chunks();
     
+    // Build chunk lookup map for O(1) access
+    std::unordered_map<world::ChunkCoord, const world::Chunk*, world::ChunkCoordHash> chunk_map;
+    for (const auto* chunk : chunks) {
+        if (chunk && chunk->generated) {
+            chunk_map[chunk->coords] = chunk;
+        }
+    }
+    
     // DF-style: Draw multiple Z-levels with depth fog
-    // Z-2 (very faded), Z-1 (faded), Z (current - solid)
     for (int z_offset = -2; z_offset <= 0; z_offset++) {
         int z_layer = current_z_ + z_offset;
-        
-        // Calculate alpha based on depth (deeper = more faded)
-        // Z-2: 30% opacity, Z-1: 60% opacity, Z: 100% opacity
         float alpha_mult = 1.0f - (float)(-z_offset) * 0.35f;
         
-        for (const auto* chunk : chunks) {
-            if (!chunk || !chunk->generated) continue;
-            
-            auto [ox, oy, oz] = chunk->world_origin();
-            
-            // Check if this chunk intersects with current Z layer
-            if (z_layer < oz || z_layer >= oz + world::CHUNK_SIZE) continue;
-            
-            int local_z = z_layer - oz;
-            
-            for (int y = 0; y < world::CHUNK_SIZE; y++) {
-                for (int x = 0; x < world::CHUNK_SIZE; x++) {
-                    int world_x = ox + x;
-                    int world_y = oy + y;
+        // Iterate ONLY visible tiles (viewport-first)
+        for (int world_y = view_y_min; world_y <= view_y_max; world_y++) {
+            for (int world_x = view_x_min; world_x <= view_x_max; world_x++) {
+                // Calculate chunk coordinates
+                int chunk_x = (world_x >= 0) ? world_x / world::CHUNK_SIZE : (world_x - world::CHUNK_SIZE + 1) / world::CHUNK_SIZE;
+                int chunk_y = (world_y >= 0) ? world_y / world::CHUNK_SIZE : (world_y - world::CHUNK_SIZE + 1) / world::CHUNK_SIZE;
+                int chunk_z = (z_layer >= 0) ? z_layer / world::CHUNK_SIZE : (z_layer - world::CHUNK_SIZE + 1) / world::CHUNK_SIZE;
+                
+                world::ChunkCoord cc{chunk_x, chunk_y, chunk_z};
+                
+                // Look up chunk in map (O(1))
+                auto it = chunk_map.find(cc);
+                if (it == chunk_map.end()) continue;
+                const world::Chunk* chunk = it->second;
+                
+                // Calculate local coordinates within chunk
+                auto [ox, oy, oz] = chunk->world_origin();
+                int local_x = world_x - ox;
+                int local_y = world_y - oy;
+                int local_z = z_layer - oz;
+                
+                if (local_x < 0 || local_x >= world::CHUNK_SIZE ||
+                    local_y < 0 || local_y >= world::CHUNK_SIZE ||
+                    local_z < 0 || local_z >= world::CHUNK_SIZE) continue;
+                
+                size_t idx = world::Chunk::idx(local_x, local_y, local_z);
+                if (idx >= world::CHUNK_CELLS) continue;
+                
+                world::Material mat = chunk->material[idx];
+                if (mat == world::Material::AIR) continue;
+                
+                int mat_val = static_cast<int>(mat);
+                if (mat_val < 0 || mat_val > 110) continue;
+                
+                // Material colors
+                Color base_color = {80, 80, 80, 255};
+                switch (mat) {
+                    case world::Material::GRANITE:   base_color = {60, 50, 50, 255}; break;
+                    case world::Material::BASALT:    base_color = {40, 40, 45, 255}; break;
+                    case world::Material::LIMESTONE: base_color = {180, 180, 170, 255}; break;
+                    case world::Material::SOIL:      base_color = {101, 67, 33, 255}; break;
+                    case world::Material::WATER:     base_color = {30, 100, 200, 255}; break;
+                    case world::Material::ICE:       base_color = {200, 220, 255, 255}; break;
+                    case world::Material::SANDSTONE: base_color = {194, 178, 128, 255}; break;
+                    case world::Material::REGOLITH:  base_color = {160, 150, 140, 255}; break;
+                    case world::Material::IRON_ORE:  base_color = {150, 90, 70, 255}; break;
+                    case world::Material::COPPER_ORE: base_color = {180, 115, 75, 255}; break;
+                    case world::Material::SHALE:     base_color = {70, 70, 80, 255}; break;
+                    case world::Material::MARBLE:    base_color = {240, 235, 230, 255}; break;
+                    default: break;
+                }
+                
+                // Apply depth fog for lower Z
+                if (z_offset < 0) {
+                    base_color.r = (unsigned char)(base_color.r * alpha_mult * 0.7f);
+                    base_color.g = (unsigned char)(base_color.g * alpha_mult * 0.7f);
+                    base_color.b = (unsigned char)(base_color.b * alpha_mult * 0.7f);
+                }
+                
+                // Coord variation
+                unsigned int seed = world_x * 73856093 ^ world_y * 19349663 ^ z_layer * 83492791;
+                int var = (seed % 20) - 10;
+                if (mat != world::Material::WATER && mat != world::Material::ICE) {
+                    base_color.r = (unsigned char)std::clamp(base_color.r + var, 0, 255);
+                    base_color.g = (unsigned char)std::clamp(base_color.g + var, 0, 255);
+                    base_color.b = (unsigned char)std::clamp(base_color.b + var, 0, 255);
+                }
+                
+                DrawRectangle(world_x * tile, world_y * tile, tile, tile, base_color);
+                
+                // Overlays only on current Z
+                if (z_offset == 0 && active_overlay_ != OverlayType::NONE) {
+                    double temp = chunk->temperature[idx];
+                    double dens = chunk->density[idx];
+                    Color overlay = {0, 0, 0, 0};
                     
-                    // Frustum culling
-                    Vector2 screen_pos = GetWorldToScreen2D(
-                        {(float)world_x * tile, (float)world_y * tile}, camera_);
-                    if (screen_pos.x < -tile || screen_pos.x > GetScreenWidth() + tile ||
-                        screen_pos.y < -tile || screen_pos.y > GetScreenHeight() + tile) {
-                        continue;
-                    }
-                    
-                    size_t idx = world::Chunk::idx(x, y, local_z);
-                    if (idx >= world::CHUNK_CELLS) continue;
-                    
-                    world::Material mat = chunk->material[idx];
-                    
-                    // For lower Z-levels, also skip if current Z has solid material
-                    if (z_offset < 0 && mat == world::Material::AIR) continue;
-                    if (mat == world::Material::AIR) continue;
-                    
-                    int mat_val = static_cast<int>(mat);
-                    if (mat_val < 0 || mat_val > 110) continue;  // Valid range includes ores (100-101)
-                    
-                    // Material colors (expanded)
-                    Color base_color = {80, 80, 80, 255};
-                    switch (mat) {
-                        case world::Material::GRANITE:   base_color = {60, 50, 50, 255}; break;
-                        case world::Material::BASALT:    base_color = {40, 40, 45, 255}; break;
-                        case world::Material::LIMESTONE: base_color = {180, 180, 170, 255}; break;
-                        case world::Material::SOIL:      base_color = {101, 67, 33, 255}; break;
-                        case world::Material::WATER:     base_color = {30, 100, 200, 255}; break;
-                        case world::Material::ICE:       base_color = {200, 220, 255, 255}; break;
-                        case world::Material::SANDSTONE: base_color = {194, 178, 128, 255}; break;
-                        case world::Material::REGOLITH:  base_color = {160, 150, 140, 255}; break;
-                        case world::Material::IRON_ORE:  base_color = {150, 90, 70, 255}; break;
-                        case world::Material::COPPER_ORE: base_color = {180, 115, 75, 255}; break;
-                        case world::Material::SHALE:     base_color = {70, 70, 80, 255}; break;
-                        case world::Material::MARBLE:    base_color = {240, 235, 230, 255}; break;
+                    switch (active_overlay_) {
+                        case OverlayType::TEMPERATURE: {
+                            double t = std::clamp((temp - 200.0) / 200.0, 0.0, 1.0);
+                            overlay.r = static_cast<unsigned char>(t * 255);
+                            overlay.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
+                            overlay.b = static_cast<unsigned char>((1.0 - t) * 255);
+                            overlay.a = 100;
+                            break;
+                        }
+                        case OverlayType::PRESSURE: {
+                            double d = std::clamp((dens - 1.0) / 3000.0, 0.0, 1.0);
+                            overlay.r = static_cast<unsigned char>(d * 255);
+                            overlay.g = static_cast<unsigned char>(d * 200);
+                            overlay.b = static_cast<unsigned char>((1.0 - d) * 200);
+                            overlay.a = 100;
+                            break;
+                        }
+                        case OverlayType::OXYGEN: {
+                            double o2 = (chunk->o2_fraction.size() > idx) ? chunk->o2_fraction[idx] : 0.21;
+                            double o = std::clamp(o2 / 0.21, 0.0, 1.0);
+                            overlay.r = static_cast<unsigned char>((1.0 - o) * 200);
+                            overlay.g = static_cast<unsigned char>(o * 200);
+                            overlay.b = 50;
+                            overlay.a = 100;
+                            break;
+                        }
                         default: break;
                     }
-                    
-                    // Apply depth fog (darker for lower Z)
-                    if (z_offset < 0) {
-                        base_color.r = (unsigned char)(base_color.r * alpha_mult * 0.7f);
-                        base_color.g = (unsigned char)(base_color.g * alpha_mult * 0.7f);
-                        base_color.b = (unsigned char)(base_color.b * alpha_mult * 0.7f);
-                    }
-                    
-                    // Coord variation for non-water
-                    unsigned int seed = world_x * 73856093 ^ world_y * 19349663 ^ z_layer * 83492791;
-                    int var = (seed % 20) - 10;
-                    if (mat != world::Material::WATER && mat != world::Material::ICE) {
-                        base_color.r = (unsigned char)std::clamp(base_color.r + var, 0, 255);
-                        base_color.g = (unsigned char)std::clamp(base_color.g + var, 0, 255);
-                        base_color.b = (unsigned char)std::clamp(base_color.b + var, 0, 255);
-                    }
-                    
-                    // Draw tile
-                    DrawRectangle(world_x * tile, world_y * tile, tile, tile, base_color);
-                    
-                    // Overlays only on current Z layer
-                    if (z_offset == 0 && active_overlay_ != OverlayType::NONE) {
-                        double temp = chunk->temperature[idx];
-                        double dens = chunk->density[idx];
-                        Color overlay = {0, 0, 0, 0};
-                        
-                        switch (active_overlay_) {
-                            case OverlayType::TEMPERATURE: {
-                                double t = std::clamp((temp - 200.0) / 200.0, 0.0, 1.0);
-                                overlay.r = static_cast<unsigned char>(t * 255);
-                                overlay.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
-                                overlay.b = static_cast<unsigned char>((1.0 - t) * 255);
-                                overlay.a = 100;
-                                break;
-                            }
-                            case OverlayType::PRESSURE: {
-                                double d = std::clamp((dens - 1.0) / 3000.0, 0.0, 1.0);
-                                overlay.r = static_cast<unsigned char>(d * 255);
-                                overlay.g = static_cast<unsigned char>(d * 200);
-                                overlay.b = static_cast<unsigned char>((1.0 - d) * 200);
-                                overlay.a = 100;
-                                break;
-                            }
-                            case OverlayType::OXYGEN: {
-                                double o2 = (chunk->o2_fraction.size() > idx) ? chunk->o2_fraction[idx] : 0.21;
-                                double o = std::clamp(o2 / 0.21, 0.0, 1.0);
-                                overlay.r = static_cast<unsigned char>((1.0 - o) * 200);
-                                overlay.g = static_cast<unsigned char>(o * 200);
-                                overlay.b = 50;
-                                overlay.a = 100;
-                                break;
-                            }
-                            default: break;
-                        }
-                        if (overlay.a > 0) {
-                            DrawRectangle(world_x * tile, world_y * tile, tile, tile, overlay);
-                        }
+                    if (overlay.a > 0) {
+                        DrawRectangle(world_x * tile, world_y * tile, tile, tile, overlay);
                     }
                 }
             }
         }
     }
     
-    // Chunk borders (subtle)
+    // Chunk borders (only for visible chunks)
     for (const auto* chunk : chunks) {
         if (!chunk) continue;
         auto [ox, oy, oz] = chunk->world_origin();
         if (current_z_ < oz || current_z_ >= oz + world::CHUNK_SIZE) continue;
+        // Check if chunk is visible
+        if (ox + world::CHUNK_SIZE < view_x_min || ox > view_x_max ||
+            oy + world::CHUNK_SIZE < view_y_min || oy > view_y_max) continue;
         DrawRectangleLines(ox * tile, oy * tile, 
                            world::CHUNK_SIZE * tile, 
                            world::CHUNK_SIZE * tile, 
