@@ -533,15 +533,15 @@ void main() {
     if (global_z < surface_z) {
         // Underground
         if (global_z < surface_z - 20) {
-            mat_id = 2; // GRANITE (from chunk.hpp enum)
+            mat_id = 30u; // GRANITE = 30
             dens = 2700.0;
         } else if (global_z < surface_z - 5) {
             // Noise for rock variation
             float rock_noise = noise(vec3(wx*0.1, wy*0.1, wz*0.1));
-            mat_id = (rock_noise > 0.5) ? 3 : 4; // BASALT : LIMESTONE
+            mat_id = (rock_noise > 0.5) ? 31u : 32u; // BASALT = 31, LIMESTONE = 32
             dens = 2500.0;
         } else {
-            mat_id = 9; // SOIL
+            mat_id = 37u; // SOIL = 37
             dens = 1500.0;
         }
         
@@ -550,21 +550,11 @@ void main() {
         temp = 288.0 + depth * 0.025;
     } else if (global_z < 0) {
         // Underwater
-        mat_id = 10; // WATER (Liquid) - wait, Liquid starts at?
-        // Checking Material enum in chunk.hpp:
-        // AIR=0, GAS_START=0, LIQUID_START=9?
-        // Need to check enum values. Assuming:
-        // AIR=0, ... WATER=10? 
-        // Let's rely on standard IDs or pass uniforms.
-        // Hardcoding standard IDs for isolated:
-        // AIR=0, O2=1... WATER=9, MAGMA=10...
-        // SOLID: ICE=11... GRANITE=13...
-        // Let's use generic logic for now, fix IDs later.
-        mat_id = 9; // WATER (Placeholder ID)
+        mat_id = 10u; // WATER = 10
         dens = 1000.0;
     } else {
         // Air
-        mat_id = 0;
+        mat_id = 0u; // AIR = 0
         dens = 1.225;
     }
     
