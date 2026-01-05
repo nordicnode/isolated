@@ -6,6 +6,7 @@
 #include <isolated/renderer/debug_ui.hpp>
 #include <isolated/fluids/lbm_engine.hpp>
 #include <isolated/thermal/heat_engine.hpp>
+#include <isolated/entities/components.hpp>
 
 #include "imgui.h"
 #include "rlImGui.h"
@@ -108,7 +109,9 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
                            const thermal::ThermalEngine &thermal,
                            const Camera2D &camera, int tile_size,
                            bool &paused, float &time_scale,
-                           double sim_step_time_ms, double sim_time) {
+                           double sim_step_time_ms, double sim_time,
+                           entt::registry* registry,
+                           entt::entity selected_entity) {
   // Fixed left sidebar
   float sidebar_width = 220.0f;
   ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
@@ -208,6 +211,45 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
         inspected_x_ = -1;
         inspected_y_ = -1;
       }
+    }
+
+    ImGui::Spacing();
+
+    // === ENTITY INSPECTOR ===
+    if (registry && ImGui::CollapsingHeader("Entity Inspector", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (selected_entity != entt::null && registry->valid(selected_entity)) {
+            ImGui::Text("ID: %d", static_cast<int>(selected_entity));
+            
+            // Name
+            if (auto* astronaut = registry->try_get<entities::Astronaut>(selected_entity)) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.0f, 1.0f));
+                ImGui::Text("Name: %s", astronaut->name.c_str());
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::TextDisabled("Type: Unknown");
+            }
+
+            // Position
+            if (auto* pos = registry->try_get<entities::Position>(selected_entity)) {
+                ImGui::Text("Pos: (%.1f, %.1f, %d)", pos->x, pos->y, pos->z);
+            }
+
+            // Velocity
+            if (auto* vel = registry->try_get<entities::Velocity>(selected_entity)) {
+                ImGui::Text("Vel: (%.3f, %.3f)", vel->dx, vel->dy);
+            }
+            
+            // Color
+            if (auto* render = registry->try_get<entities::Renderable>(selected_entity)) {
+                ImVec4 col(render->color.r/255.f, render->color.g/255.f, render->color.b/255.f, 1.0f);
+                ImGui::ColorButton("##color", col, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(20, 20));
+                ImGui::SameLine();
+                ImGui::Text("Glyph: '%c'", render->glyph);
+            }
+
+        } else {
+            ImGui::TextDisabled("Select an entity...");
+        }
     }
 
     ImGui::Spacing();

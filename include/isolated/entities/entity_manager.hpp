@@ -24,6 +24,9 @@ public:
   // Systems
   void update(double dt);
 
+  // Queries
+  entt::entity get_entity_at(float x, float y, int z, float radius = 0.5f) const;
+
   // Accessors
   entt::registry &registry() { return registry_; }
   const entt::registry &registry() const { return registry_; }

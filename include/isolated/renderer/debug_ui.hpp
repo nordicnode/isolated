@@ -13,6 +13,7 @@
 
 #include <string>
 #include <deque>
+#include "entt/entt.hpp"
 
 // Forward declarations
 namespace isolated {
@@ -59,7 +60,9 @@ public:
                     const thermal::ThermalEngine &thermal,
                     const Camera2D &camera, int tile_size,
                     bool &paused, float &time_scale,
-                    double sim_step_time_ms, double sim_time);
+                    double sim_step_time_ms, double sim_time,
+                    entt::registry* registry = nullptr,
+                    entt::entity selected_entity = entt::null);
 
   // Logging
   void add_log(double sim_time, const std::string &message, int severity = 0);

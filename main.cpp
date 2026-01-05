@@ -129,6 +129,21 @@ int main() {
     // Always update input (keyboard for overlays/pause works regardless of ImGui)
     // Note: Renderer's camera drag uses is_capturing_mouse internally
     game_renderer.update_input();
+    
+    // INPUT: Select Entity
+    // (Only if not clicking the ImGui sidebar)
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Vector2 mouse_pos = GetMousePosition();
+        if (mouse_pos.x > 220.0f) { // Sidebar width
+            Vector2 mouse_world = GetScreenToWorld2D(mouse_pos, game_renderer.get_camera());
+            float world_x = mouse_world.x / render_config.tile_size;
+            float world_y = mouse_world.y / render_config.tile_size;
+            
+            // Query ECS
+            entt::entity hit = entity_manager.get_entity_at(world_x, world_y, game_renderer.get_z_level());
+            game_renderer.select_entity(hit);
+        }
+    }
 
     // Keyboard shortcuts for simulation control (in addition to ImGui)
     if (IsKeyPressed(KEY_SPACE))
@@ -177,7 +192,9 @@ int main() {
     debug_ui.begin_frame();
     debug_ui.draw_sidebar(fluids, thermal, game_renderer.get_camera(),
                           render_config.tile_size, paused, time_scale,
-                          sim_step_time_ms, sim_time);
+                          sim_step_time_ms, sim_time,
+                          &entity_manager.registry(),
+                          game_renderer.get_selected_entity());
     debug_ui.end_frame();
 
     game_renderer.end_frame();

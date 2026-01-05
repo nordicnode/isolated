@@ -42,5 +42,25 @@ void EntityManager::update_movement(double dt) {
   });
 }
 
+entt::entity EntityManager::get_entity_at(float target_x, float target_y, int target_z, float radius) const {
+  auto view = registry_.view<const Position>();
+  entt::entity found = entt::null;
+  float min_dist_sq = radius * radius;
+
+  for (auto [entity, pos] : view.each()) {
+    if (pos.z != target_z) continue;
+
+    float dx = pos.x - target_x;
+    float dy = pos.y - target_y;
+    float dist_sq = dx * dx + dy * dy;
+
+    if (dist_sq <= min_dist_sq) {
+      min_dist_sq = dist_sq;
+      found = entity;
+    }
+  }
+  return found;
+}
+
 } // namespace entities
 } // namespace isolated

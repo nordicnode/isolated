@@ -13,6 +13,7 @@
 
 #include "raylib.h"
 #include <string>
+#include "entt/entt.hpp"
 
 #include <isolated/fluids/lbm_engine.hpp>
 #include <isolated/thermal/heat_engine.hpp>
@@ -61,7 +62,12 @@ public:
   // Note: Using template to avoid dragging full EnTT header here if possible, 
   // but for simplicity we'll forward declare or include in cpp.
   // Actually, let's include EnTT in headers to allow passing registry const reference.
-  void draw_entities(const void* registry_ptr); // Using void* to decouple header, cast in implementation
+  // Entity rendering
+  void draw_entities(const void* registry_ptr); 
+  
+  // Selection
+  void select_entity(entt::entity entity) { selected_entity_ = entity; }
+  entt::entity get_selected_entity() const { return selected_entity_; }
   
   void draw_hud();
   void end_frame();
@@ -95,6 +101,9 @@ private:
   // Mouse state
   Vector2 last_mouse_pos_{};
   bool dragging_ = false;
+
+  // Selection state
+  entt::entity selected_entity_ = entt::null;
 
   // Optimized grid rendering (texture-based for large grids)
   Image grid_image_{};

@@ -271,6 +271,16 @@ void Renderer::draw_entities(const void* registry_ptr) {
       // Small tile fallback: just a colored square/circle
       DrawRectangle(px, py, tile, tile, render.color);
     }
+
+    // Selection Highlight
+    if (entity == selected_entity_) {
+      // Draw yellow bracket/outline
+      DrawRectangleLines(px, py, tile, tile, YELLOW);
+      // Make it a bit thicker by drawing another one inside
+      if (tile > 4) {
+          DrawRectangleLines(px + 1, py + 1, tile - 2, tile - 2, YELLOW);
+      }
+    }
   }
 }
 
