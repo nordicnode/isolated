@@ -264,7 +264,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(t * 255);
                             color.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
                             color.b = static_cast<unsigned char>((1.0 - t) * 255);
-                            color.a = (mat == world::Material::AIR) ? 60 : 150; // Semi-transparent
+                            color.a = (mat == world::Material::AIR) ? 40 : 100; // More transparent
                             break;
                         }
                         case OverlayType::PRESSURE: {
@@ -273,7 +273,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(d * 255);
                             color.g = static_cast<unsigned char>(d * 200);
                             color.b = static_cast<unsigned char>((1.0 - d) * 200);
-                            color.a = (mat == world::Material::AIR) ? 40 : 150; // Semi-transparent
+                            color.a = (mat == world::Material::AIR) ? 30 : 100; // More transparent
                             break;
                         }
                         case OverlayType::OXYGEN: {
@@ -283,7 +283,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>((1.0 - o) * 200);
                             color.g = static_cast<unsigned char>(o * 200);
                             color.b = 50;
-                            color.a = (mat == world::Material::AIR) ? 60 : 150; // Semi-transparent
+                            color.a = (mat == world::Material::AIR) ? 40 : 100; // More transparent
                             break;
                         }
                         default: break;
@@ -314,10 +314,15 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                            {255, 255, 255, 30});
     }
     
-    // Debug info: show chunk count and Z-level
-    // Draw in screen space (after EndMode2D in main, but we're still in 2D mode here)
-    // Instead, draw at a fixed world position that's always visible
-    DrawText(TextFormat("Chunks: %d | Z: %d", (int)chunks.size(), z_layer), 
+    // Debug info: show chunk count, Z-level, and active overlay
+    const char* overlay_name = "";
+    switch (active_overlay_) {
+        case OverlayType::NONE: overlay_name = ""; break;
+        case OverlayType::TEMPERATURE: overlay_name = "| TEMP"; break;
+        case OverlayType::PRESSURE: overlay_name = "| PRESSURE"; break;
+        case OverlayType::OXYGEN: overlay_name = "| O2"; break;
+    }
+    DrawText(TextFormat("Chunks: %d | Z: %d %s", (int)chunks.size(), z_layer, overlay_name), 
              10, 10, 20, YELLOW);
 }
 
