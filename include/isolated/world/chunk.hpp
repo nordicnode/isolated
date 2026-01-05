@@ -20,28 +20,91 @@ constexpr size_t CHUNK_CELLS = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE; // 262,144
 
 /**
  * @brief Material types for terrain.
+ * Must stay in sync with thermal::MATERIALS map.
  */
 enum class Material : uint8_t {
-    AIR = 0,
-    GRANITE = 1,
-    BASALT = 2,
-    SANDSTONE = 3,
-    LIMESTONE = 4,
-    SHALE = 5,
-    MARBLE = 6,
-    SOIL = 7,
-    WATER = 8,
-    MAGMA = 9,
-    ICE = 10,
+    // Gases (individual species for LBM simulation)
+    AIR = 0,           // Mixed atmosphere
+    OXYGEN = 1,        // O2 - respiration product
+    NITROGEN = 2,      // N2 - inert
+    CO2 = 3,           // Carbon dioxide - respiration/combustion waste
+    METHANE = 4,       // CH4 - decomposition, swamp gas
+    WATER_VAPOR = 5,   // H2O gas - evaporation
+    HYDROGEN = 6,      // H2 - volcanic, industrial
+    AMMONIA = 7,       // NH3 - decomposition, alien atmospheres
+    SULFUR_DIOXIDE = 8,// SO2 - volcanic
+    // Liquids
+    WATER = 10,
+    MAGMA = 11,
+    
+    // Solids - Natural
+    ICE = 20,
+    CO2_ICE = 21,
+    GRANITE = 30,
+    BASALT = 31,
+    LIMESTONE = 32,
+    SANDSTONE = 33,
+    SHALE = 34,
+    MARBLE = 35,
+    REGOLITH = 36,
+    SOIL = 37,
+    
+    // Solids - Manufactured
+    STEEL = 50,
+    
+    // Biological
+    FLESH = 60,
+    
     // Ores
-    IRON_ORE = 50,
-    COPPER_ORE = 51,
-    GOLD_ORE = 52,
-    COAL = 53,
-    // Add more as needed
+    IRON_ORE = 100,
+    COPPER_ORE = 101,
+    GOLD_ORE = 102,
+    COAL = 103,
+    URANIUM_ORE = 104,
+    
     MAX_MATERIALS = 255
 };
 
+/**
+ * @brief Convert Material enum to string key for thermal::MATERIALS lookup.
+ */
+inline const char* material_to_string(Material mat) {
+    switch (mat) {
+        // Gases
+        case Material::AIR: return "air";
+        case Material::OXYGEN: return "oxygen";
+        case Material::NITROGEN: return "nitrogen";
+        case Material::CO2: return "co2";
+        case Material::METHANE: return "methane";
+        case Material::WATER_VAPOR: return "water_vapor";
+        case Material::HYDROGEN: return "hydrogen";
+        case Material::AMMONIA: return "ammonia";
+        case Material::SULFUR_DIOXIDE: return "sulfur_dioxide";
+        // Liquids
+        case Material::WATER: return "water";
+        case Material::MAGMA: return "magma";
+        // Solids
+        case Material::ICE: return "ice";
+        case Material::CO2_ICE: return "co2_ice";
+        case Material::GRANITE: return "granite";
+        case Material::BASALT: return "basalt";
+        case Material::LIMESTONE: return "limestone";
+        case Material::SANDSTONE: return "sandstone";
+        case Material::SHALE: return "shale";
+        case Material::MARBLE: return "marble";
+        case Material::REGOLITH: return "regolith";
+        case Material::SOIL: return "soil";
+        case Material::STEEL: return "steel";
+        case Material::FLESH: return "flesh";
+        // Ores
+        case Material::IRON_ORE: return "iron_ore";
+        case Material::COPPER_ORE: return "copper_ore";
+        case Material::GOLD_ORE: return "gold_ore";
+        case Material::COAL: return "coal";
+        case Material::URANIUM_ORE: return "uranium_ore";
+        default: return "air";
+    }
+}
 /**
  * @brief Chunk coordinate (world-space chunk index).
  */
