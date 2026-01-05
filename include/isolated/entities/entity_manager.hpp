@@ -4,6 +4,7 @@
 #include <isolated/entities/components.hpp>
 #include <isolated/entities/spatial_index.hpp>
 #include <string>
+#include <random>
 
 namespace isolated {
 namespace entities {
@@ -26,7 +27,12 @@ public:
   void update(double dt);
 
   // Queries
+  // Queries
   entt::entity get_entity_at(float x, float y, int z, float radius = 0.5f) const;
+  
+  // Returns all entities within the given radius of the point.
+  // Note: Only checks 'Position' components.
+  std::vector<entt::entity> get_entities_in_radius(float x, float y, int z, float radius) const;
 
   // Accessors
   entt::registry &registry() { return registry_; }
@@ -39,6 +45,10 @@ public:
 private:
   entt::registry registry_;
   SpatialIndex spatial_index_;
+  
+  // Seeded RNG for deterministic spawning
+  std::mt19937 rng_;
+  uint32_t seed_ = 42;
 
   // System methods
   void update_movement(double dt);

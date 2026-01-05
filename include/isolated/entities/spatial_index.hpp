@@ -43,6 +43,22 @@ public:
         size_t index = y * width_ + x;
         return grid_[index];
     }
+    
+    // Allow querying a range of cells (useful for radius checks)
+    void query_range(int min_x, int min_y, int max_x, int max_y, std::vector<entt::entity>& out_result) const {
+        // Clamp bounds
+        if (min_x < 0) min_x = 0;
+        if (min_y < 0) min_y = 0;
+        if (max_x >= width_) max_x = width_ - 1;
+        if (max_y >= height_) max_y = height_ - 1;
+        
+        for (int y = min_y; y <= max_y; ++y) {
+            for (int x = min_x; x <= max_x; ++x) {
+                const auto& cell = grid_[y * width_ + x];
+                out_result.insert(out_result.end(), cell.begin(), cell.end());
+            }
+        }
+    }
 
 private:
     int width_ = 0;

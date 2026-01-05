@@ -239,46 +239,61 @@ void Renderer::draw_entities(const void* registry_ptr) {
 
   int tile = config_.tile_size;
   int z = current_z_;
-  int font_size = tile; // Use full tile size for entities
   
-  // Use MeasureText to center glyphs
-  // Note: For very small tiles (e.g. 2px), this might be expensive or unreadable.
-  // Ideally, for 2px tiles, we'd just draw a colored pixel.
-  bool use_glyph = tile >= 6;
+  // Use the default font as a texture atlas for DF-style rendering
+  Font font = GetFontDefault();
+  // Ensure sharp pixel-art scaling
+  SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
 
   auto view = registry.view<const isolated::entities::Position, const isolated::entities::Renderable>();
   
+  // Pre-calculate glyph info for efficiency (assuming mostly '@')
+  // We can cache this if needed, but for now looking it up is fast enough
+  
   for (auto [entity, pos, render] : view.each()) {
-    // Only render entities on current Z-level
     if (pos.z != z) continue;
-    
-    // Bounds check
     if (pos.x < 0 || pos.x >= grid_nx_ || pos.y < 0 || pos.y >= grid_ny_) continue;
     
-    int px = static_cast<int>(pos.x * tile);
-    int py = static_cast<int>(pos.y * tile);
+    float px = static_cast<float>(pos.x * tile);
+    float py = static_cast<float>(pos.y * tile);
     
-    if (use_glyph) {
-      char glyph_str[2] = {render.glyph, '\0'};
-      int text_width = MeasureText(glyph_str, font_size);
-      int text_x = px + (tile - text_width) / 2;
-      int text_y = py + (tile - font_size) / 2;
-      
-      // Simple shadow for better contrast against terrain
-      DrawText(glyph_str, text_x + 1, text_y + 1, font_size, {0, 0, 0, 150});
-      DrawText(glyph_str, text_x, text_y, font_size, render.color);
-    } else {
-      // Small tile fallback: just a colored square/circle
-      DrawRectangle(px, py, tile, tile, render.color);
+    // 1. Get Glyph Source Rectangle from Font Atlas
+    int glyph_index = GetGlyphIndex(font, render.glyph);
+    Rectangle src_rec = font.recs[glyph_index];
+    
+    // 2. Calculate Aspect-Correct Fit within the Tile
+    // We want the glyph to fit inside 'tile' size, centered.
+    // Default font glyphs usually have some padding, but we'll try to fit the bounding box.
+    
+    float aspect = src_rec.width / src_rec.height;
+    float target_h = static_cast<float>(tile);
+    float target_w = target_h * aspect;
+    
+    // If width exceeds tile (rare for vertical tiles), constrain width
+    if (target_w > tile) {
+        target_w = static_cast<float>(tile);
+        target_h = target_w / aspect;
     }
+    
+    // Center it
+    float off_x = (tile - target_w) / 2.0f;
+    float off_y = (tile - target_h) / 2.0f;
+    
+    Rectangle dest_rec = { px + off_x, py + off_y, target_w, target_h };
+    Vector2 origin = { 0, 0 };
+    
+    // 3. Draw using Texture (Sprites)
+    // This scales perfectly with camera zoom because it's just a textured quad in world space.
+    DrawTexturePro(font.texture, src_rec, dest_rec, origin, 0.0f, render.color);
 
     // Selection Highlight
     if (entity == selected_entity_) {
-      // Draw yellow bracket/outline
       DrawRectangleLines(px, py, tile, tile, YELLOW);
-      // Make it a bit thicker by drawing another one inside
-      if (tile > 4) {
-          DrawRectangleLines(px + 1, py + 1, tile - 2, tile - 2, YELLOW);
+      // Make selection independent of tile size visual
+      float thickness = 1.0f / camera_.zoom; // Keep 1px screen thickness? Or just let it scale.
+      // Let's just draw a second box inside if we are zoomed in enough
+      if (tile * camera_.zoom > 10) {
+           DrawRectangleLines(px + 1, py + 1, tile - 2, tile - 2, YELLOW);
       }
     }
   }

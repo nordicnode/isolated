@@ -8,6 +8,9 @@ void EntityManager::init() {
   // Initialize spatial index (200x200 matches default grid size)
   // TODO: Make this configurable or dynamic based on map size
   spatial_index_.init(200, 200);
+  
+  // Seed the RNG for deterministic spawning
+  rng_.seed(seed_);
 }
 
 entt::entity EntityManager::spawn_astronaut(float x, float y, int z,
@@ -18,10 +21,12 @@ entt::entity EntityManager::spawn_astronaut(float x, float y, int z,
   registry_.emplace<Velocity>(entity, 0.0f, 0.0f);
   registry_.emplace<Astronaut>(entity, name);
   
-  // Visuals: '@' symbol, cycling colors for variety
-  Color color = {static_cast<unsigned char>(100 + (std::rand() % 155)),
-                 static_cast<unsigned char>(100 + (std::rand() % 155)),
-                 static_cast<unsigned char>(200 + (std::rand() % 55)), 255};
+  // Visuals: '@' symbol, deterministic colors from seeded RNG
+  std::uniform_int_distribution<int> dist_rgb(100, 254);
+  std::uniform_int_distribution<int> dist_blue(200, 254);
+  Color color = {static_cast<unsigned char>(dist_rgb(rng_)),
+                 static_cast<unsigned char>(dist_rgb(rng_)),
+                 static_cast<unsigned char>(dist_blue(rng_)), 255};
   
   registry_.emplace<Renderable>(entity, '@', color);
 
@@ -77,6 +82,39 @@ entt::entity EntityManager::get_entity_at(float target_x, float target_y, int ta
   }
   
   return found;
+}
+
+std::vector<entt::entity> EntityManager::get_entities_in_radius(float x, float y, int z, float radius) const {
+  std::vector<entt::entity> result;
+  // Broad phase: query spatial index for relevant cells
+  int min_x = static_cast<int>(x - radius);
+  int max_x = static_cast<int>(x + radius);
+  int min_y = static_cast<int>(y - radius);
+  int max_y = static_cast<int>(y + radius);
+
+  std::vector<entt::entity> candidates;
+  candidates.reserve(16); // Reserve some space
+  spatial_index_.query_range(min_x, min_y, max_x, max_y, candidates);
+
+  // Narrow phase: exact distance check
+  float r_sq = radius * radius;
+  auto view = registry_.view<const Position>();
+  
+  for (auto entity : candidates) {
+      if (!registry_.valid(entity)) continue;
+      
+      const auto& pos = view.get<const Position>(entity);
+      if (pos.z != z) continue;
+      
+      float dx = pos.x - x;
+      float dy = pos.y - y;
+      
+      if (dx * dx + dy * dy <= r_sq) {
+          result.push_back(entity);
+      }
+  }
+  
+  return result;
 }
 
 void EntityManager::update_spatial_index() {

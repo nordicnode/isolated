@@ -105,27 +105,27 @@ Phase 8: Polish & Advanced Rendering    [Weeks 43-50]
 - [ ] 🟢 **Entity prefabs** — Templates for common entities
 
 ### 1.2.2 Spatial Integration (Week 2-3)
-- [ ] 🔴 **Grid-based spatial index** — Simple 2D grid of entity lists
-- [ ] 🔴 **Sync positions to grid** — Update on movement
-- [ ] 🔴 **Neighbor queries** — "Who is in adjacent cells?"
+- [x] 🔴 **Grid-based spatial index** — Simple 2D grid of entity lists
+- [x] 🔴 **Sync positions to grid** — Update on movement
+- [x] 🔴 **Neighbor queries** — "Who is in adjacent cells?"
 - [ ] 🟡 **LBM grid alignment** — Entity positions map to fluid cells
 - [ ] 🟡 **Static vs dynamic separation** — Buildings don't move
-- [ ] 🟢 **Range queries** — "Who is within 5 tiles?"
+- [x] 🟢 **Range queries** — "Who is within 5 tiles?"
 
 > **Note**: Don't build an Octree. Your LBM d_solid mask handles static geometry. Use a simple grid-linked-list for dynamic entities. Add hierarchy only if verticality exceeds 2.5D layers.
 
 ## 1.3 Time & Simulation Control
 
 ### 1.3.1 Game Loop (Week 3)
-- [ ] 🔴 **Fixed timestep simulation** — Physics at constant rate
-- [ ] 🔴 **Variable render rate** — Rendering independent of simulation
-- [ ] 🔴 **Pause/resume** — Freeze simulation, UI still works
-- [ ] 🔴 **Time acceleration** — 1x, 2x, 5x, 10x, 100x
-- [ ] 🟡 **Step-by-step mode** — Advance one tick at a time
+- [x] 🔴 **Fixed timestep simulation** — Physics at constant rate
+- [x] 🔴 **Variable render rate** — Rendering independent of simulation
+- [x] 🔴 **Pause/resume** — Freeze simulation, UI still works
+- [x] 🔴 **Time acceleration** — 1x, 2x, 5x, 10x, 100x
+- [x] 🟡 **Step-by-step mode** — Advance one tick at a time
 - [ ] 🟢 **Slow motion** — 0.5x, 0.25x for debugging
 
 ### 1.3.2 Determinism
-- [ ] 🔴 **Seeded RNG** — Reproducible random numbers
+- [x] 🔴 **Seeded RNG** — Reproducible random numbers
 - [ ] 🟡 **Fixed system ordering** — Same results on replay
 - [ ] 🟢 **Replay recording** — Record for debugging
 

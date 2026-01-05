@@ -110,8 +110,9 @@ int main() {
   std::cout << "  F3: Toggle event log" << std::endl;
   std::cout << std::endl;
 
-  // Simulation parameters
-  const double base_dt = 0.01;
+  // Simulation parameters - Fixed Timestep
+  const double fixed_dt = 0.01; // 100 Hz simulation tick
+  double accumulator = 0.0;
   int step_count = 0;
   double sim_time = 0.0;
   double sim_step_time_ms = 0.0;
@@ -139,8 +140,8 @@ int main() {
             float world_x = mouse_world.x / render_config.tile_size;
             float world_y = mouse_world.y / render_config.tile_size;
             
-            // Query ECS
-            entt::entity hit = entity_manager.get_entity_at(world_x, world_y, game_renderer.get_z_level());
+            // Query ECS - Use radius 1.5 to cover full diagonal of the tile
+            entt::entity hit = entity_manager.get_entity_at(world_x, world_y, game_renderer.get_z_level(), 1.5f);
             game_renderer.select_entity(hit);
         }
     }
@@ -153,32 +154,46 @@ int main() {
     if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT))
       time_scale = std::max(time_scale / 2.0f, 0.1f);
 
-    // Update simulation (if not paused, or step requested)
-    bool should_update = !paused || game_renderer.should_step();
-
-    if (should_update) {
-      auto step_start = std::chrono::high_resolution_clock::now();
-
-      double dt = base_dt * time_scale;
-      sim_time += dt;
-
-      // Step all systems
-      fluids.step(dt);
-      thermal.step(dt);
-      circulation.step(dt);
-      blood_chem.step(dt);
-      
-      // Update entities
-      entity_manager.update(dt);
-
-      auto step_end = std::chrono::high_resolution_clock::now();
-      sim_step_time_ms = std::chrono::duration<double, std::milli>(
-                             step_end - step_start)
-                             .count();
-
-      step_count++;
+    // Fixed timestep accumulator
+    // Add frame time (scaled by time_scale) to accumulator
+    double frame_time = static_cast<double>(GetFrameTime());
+    if (!paused) {
+      accumulator += frame_time * time_scale;
+    }
+    
+    // Step-by-step mode: if paused and step requested, add exactly one tick
+    bool step_requested = game_renderer.should_step();
+    if (paused && step_requested) {
+      accumulator += fixed_dt;
       game_renderer.clear_step_request();
     }
+    
+    // Run simulation steps while accumulator has enough time
+    auto step_start = std::chrono::high_resolution_clock::now();
+    int steps_this_frame = 0;
+    const int max_steps_per_frame = 10; // Prevent spiral of death
+    
+    while (accumulator >= fixed_dt && steps_this_frame < max_steps_per_frame) {
+      // Step all systems at fixed rate
+      fluids.step(fixed_dt);
+      thermal.step(fixed_dt);
+      circulation.step(fixed_dt);
+      blood_chem.step(fixed_dt);
+      entity_manager.update(fixed_dt);
+      
+      sim_time += fixed_dt;
+      accumulator -= fixed_dt;
+      step_count++;
+      steps_this_frame++;
+    }
+    
+    // If we hit max steps, drain remaining accumulator to prevent spiral
+    if (steps_this_frame >= max_steps_per_frame && accumulator > fixed_dt) {
+      accumulator = 0.0; // Reset to prevent runaway
+    }
+    
+    auto step_end = std::chrono::high_resolution_clock::now();
+    sim_step_time_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
 
     // Render
     game_renderer.begin_frame();
