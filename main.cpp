@@ -33,6 +33,7 @@ int main() {
   lbm_config.nz = 1;
   lbm_config.enable_les = true;
   lbm_config.collision_mode = fluids::CollisionMode::MRT;
+  lbm_config.use_gpu = true; // Use GPU if CUDA available (stubs used otherwise)
 
   fluids::LBMEngine fluids(lbm_config);
   fluids.initialize_uniform({{"O2", 0.21}, {"N2", 0.79}, {"CO2", 0.0004}});
@@ -45,6 +46,7 @@ int main() {
   thermal_config.ny = 200;
   thermal_config.nz = 1;
   thermal_config.enable_radiation = true;
+  thermal_config.use_gpu = true; // Use GPU if CUDA available (stubs used otherwise)
 
   thermal::ThermalEngine thermal(thermal_config);
 
@@ -176,16 +178,9 @@ int main() {
     const int max_steps_per_frame = 10; // Prevent spiral of death
     
     while (accumulator >= fixed_dt && steps_this_frame < max_steps_per_frame) {
-      // Heavy physics run every 4th step for performance
-      // Entity systems run every step for responsiveness
-      bool run_heavy_physics = (step_count % 4 == 0);
-      
-      if (run_heavy_physics) {
-        fluids.step(fixed_dt * 4.0); // Compensate with larger dt
-        thermal.step(fixed_dt * 4.0);
-      }
-      
-      // Light systems run every step
+      // All physics systems run every step (GPU accelerated when available)
+      fluids.step(fixed_dt);
+      thermal.step(fixed_dt);
       circulation.step(fixed_dt);
       blood_chem.step(fixed_dt);
       entity_manager.update(fixed_dt);
