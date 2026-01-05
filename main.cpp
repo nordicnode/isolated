@@ -176,9 +176,16 @@ int main() {
     const int max_steps_per_frame = 10; // Prevent spiral of death
     
     while (accumulator >= fixed_dt && steps_this_frame < max_steps_per_frame) {
-      // Step all systems at fixed rate
-      fluids.step(fixed_dt);
-      thermal.step(fixed_dt);
+      // Heavy physics run every 4th step for performance
+      // Entity systems run every step for responsiveness
+      bool run_heavy_physics = (step_count % 4 == 0);
+      
+      if (run_heavy_physics) {
+        fluids.step(fixed_dt * 4.0); // Compensate with larger dt
+        thermal.step(fixed_dt * 4.0);
+      }
+      
+      // Light systems run every step
       circulation.step(fixed_dt);
       blood_chem.step(fixed_dt);
       entity_manager.update(fixed_dt);

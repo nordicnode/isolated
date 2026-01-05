@@ -288,22 +288,17 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
                         // Needs Bars
                         char buf[32];
                         
-                        // Helper to draw bar with better label contrast
+                        // Helper: Label ABOVE bar for readability
                         auto draw_bar = [](const char* label, float val, ImVec4 color) {
+                            ImGui::Text("%s: %.0f%%", label, val * 100.0f);
                             ImGui::PushStyleColor(ImGuiCol_PlotHistogram, color);
-                            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1,1,1,1)); // Force white text
-                            char b[32];
-                            snprintf(b, 32, "%s: %.0f%%", label, val * 100.0f);
-                            ImGui::ProgressBar(val, ImVec2(-1, 18), b); // Taller bar
-                            ImGui::PopStyleColor(2);
+                            ImGui::ProgressBar(val, ImVec2(-1, 8), ""); // Thin bar, no text
+                            ImGui::PopStyleColor();
                         };
 
                         draw_bar("O2", needs->oxygen, ImVec4(0.0f, 0.7f, 0.8f, 1.0f));
-                        ImGui::Spacing();
                         draw_bar("Food", needs->hunger, ImVec4(0.8f, 0.5f, 0.0f, 1.0f));
-                        ImGui::Spacing();
                         draw_bar("H2O", needs->thirst, ImVec4(0.1f, 0.4f, 0.8f, 1.0f));
-                        ImGui::Spacing();
                         draw_bar("Energy", 1.0f - needs->fatigue, ImVec4(0.8f, 0.8f, 0.1f, 1.0f));
                     } else {
                         ImGui::TextDisabled("No Needs Component");
