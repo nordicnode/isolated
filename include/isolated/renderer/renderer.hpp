@@ -92,7 +92,7 @@ private:
   // Simulation grid dimensions (set from LBM engine)
   size_t grid_nx_ = 200;
   size_t grid_ny_ = 200;
-  size_t grid_nz_ = 1;
+  size_t grid_nz_ = 64; // Match chunk Z size for proper navigation
 
   // View state
   int current_z_ = 0;
