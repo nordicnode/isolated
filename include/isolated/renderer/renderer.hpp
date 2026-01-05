@@ -56,6 +56,13 @@ public:
   void begin_frame();
   void draw_grid(const fluids::LBMEngine &fluids,
                  const thermal::ThermalEngine &thermal);
+  
+  // Entity rendering
+  // Note: Using template to avoid dragging full EnTT header here if possible, 
+  // but for simplicity we'll forward declare or include in cpp.
+  // Actually, let's include EnTT in headers to allow passing registry const reference.
+  void draw_entities(const void* registry_ptr); // Using void* to decouple header, cast in implementation
+  
   void draw_hud();
   void end_frame();
 

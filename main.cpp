@@ -16,6 +16,7 @@
 #include <isolated/renderer/debug_ui.hpp>
 #include <isolated/renderer/renderer.hpp>
 #include <isolated/thermal/heat_engine.hpp>
+#include <isolated/entities/entity_manager.hpp>
 
 using namespace isolated;
 
@@ -84,6 +85,17 @@ int main() {
   debug_ui.init();
   std::cout << "[OK] Debug UI: Dear ImGui initialized" << std::endl;
 
+  // Initialize Entity Manager (ECS)
+  entities::EntityManager entity_manager;
+  entity_manager.init();
+  
+  // Spawn test entities
+  entity_manager.spawn_astronaut(50, 50, 0, "Bob");
+  entity_manager.spawn_astronaut(60, 40, 0, "Alice");
+  entity_manager.spawn_astronaut(100, 100, 0, "Commander");
+  
+  std::cout << "[OK] ECS: EnTT initialized, 3 astronauts spawned" << std::endl;
+
   std::cout << std::endl;
   std::cout << "=== Simulation Running ===" << std::endl;
   std::cout << "Controls:" << std::endl;
@@ -140,6 +152,9 @@ int main() {
       thermal.step(dt);
       circulation.step(dt);
       blood_chem.step(dt);
+      
+      // Update entities
+      entity_manager.update(dt);
 
       auto step_end = std::chrono::high_resolution_clock::now();
       sim_step_time_ms = std::chrono::duration<double, std::milli>(
@@ -153,6 +168,7 @@ int main() {
     // Render
     game_renderer.begin_frame();
     game_renderer.draw_grid(fluids, thermal);
+    game_renderer.draw_entities(&entity_manager.registry());
 
     // Exit camera mode for ImGui (screen-space rendering)
     EndMode2D();

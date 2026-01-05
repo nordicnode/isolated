@@ -116,6 +116,15 @@ add_library(rlimgui_lib STATIC
 target_include_directories(rlimgui_lib PUBLIC ${rlimgui_SOURCE_DIR})
 target_link_libraries(rlimgui_lib PUBLIC imgui_lib raylib)
 
+# EnTT (ECS)
+FetchContent_Declare(
+    entt
+    GIT_REPOSITORY https://github.com/skypjack/entt.git
+    GIT_TAG v3.13.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(entt)
+
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
@@ -131,7 +140,7 @@ add_library(isolated_lib STATIC ${SOURCES})
 target_include_directories(isolated_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Link dependencies
-target_link_libraries(isolated_lib PUBLIC fmt::fmt raylib rlimgui_lib)
+target_link_libraries(isolated_lib PUBLIC fmt::fmt raylib rlimgui_lib EnTT::EnTT)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(isolated_lib PUBLIC OpenMP::OpenMP_CXX)

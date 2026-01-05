@@ -5,6 +5,8 @@
 
 #include <isolated/renderer/renderer.hpp>
 #include <isolated/renderer/color_maps.hpp>
+#include <isolated/entities/components.hpp>
+#include "entt/entt.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -229,6 +231,48 @@ Color Renderer::get_cell_color(const fluids::LBMEngine &fluids,
   return {25, 22, 18, 255};
 }
 
+
+void Renderer::draw_entities(const void* registry_ptr) {
+  if (!registry_ptr) return;
+
+  const entt::registry& registry = *static_cast<const entt::registry*>(registry_ptr);
+
+  int tile = config_.tile_size;
+  int z = current_z_;
+  int font_size = tile; // Use full tile size for entities
+  
+  // Use MeasureText to center glyphs
+  // Note: For very small tiles (e.g. 2px), this might be expensive or unreadable.
+  // Ideally, for 2px tiles, we'd just draw a colored pixel.
+  bool use_glyph = tile >= 6;
+
+  auto view = registry.view<const isolated::entities::Position, const isolated::entities::Renderable>();
+  
+  for (auto [entity, pos, render] : view.each()) {
+    // Only render entities on current Z-level
+    if (pos.z != z) continue;
+    
+    // Bounds check
+    if (pos.x < 0 || pos.x >= grid_nx_ || pos.y < 0 || pos.y >= grid_ny_) continue;
+    
+    int px = static_cast<int>(pos.x * tile);
+    int py = static_cast<int>(pos.y * tile);
+    
+    if (use_glyph) {
+      char glyph_str[2] = {render.glyph, '\0'};
+      int text_width = MeasureText(glyph_str, font_size);
+      int text_x = px + (tile - text_width) / 2;
+      int text_y = py + (tile - font_size) / 2;
+      
+      // Simple shadow for better contrast against terrain
+      DrawText(glyph_str, text_x + 1, text_y + 1, font_size, {0, 0, 0, 150});
+      DrawText(glyph_str, text_x, text_y, font_size, render.color);
+    } else {
+      // Small tile fallback: just a colored square/circle
+      DrawRectangle(px, py, tile, tile, render.color);
+    }
+  }
+}
 
 void Renderer::draw_hud() {
   EndMode2D(); // Exit camera mode for HUD
