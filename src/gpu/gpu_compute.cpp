@@ -528,22 +528,22 @@ void main() {
     int global_z = int(wz);
     
     // === CAVE GENERATION (3D noise) ===
-    // Large caves
-    float cave_noise = fbm(vec3(wx * 0.04, wy * 0.04, wz * 0.06 + seed));
-    float cave_threshold = 0.58; // Higher = smaller caves
-    bool is_cave = cave_noise > cave_threshold && global_z < surface_z - 3;
+    // "Worm" caves using distance from noise surface (creates connected tunnels)
+    float worm1 = noise(vec3(wx * 0.035, wy * 0.035, wz * 0.05 + seed));
+    float worm2 = noise(vec3(wx * 0.04 + 100.0, wy * 0.04 + seed, wz * 0.045));
+    float worm_dist = abs(worm1 - 0.5) + abs(worm2 - 0.5); // Distance from 0.5 isosurface
+    bool is_worm_cave = worm_dist < 0.12 && global_z < surface_z - 5 && global_z > -80;
     
-    // Smaller tunnels/worm caves
-    float tunnel_noise = noise(vec3(wx * 0.1 + seed, wy * 0.1, wz * 0.15));
-    bool is_tunnel = tunnel_noise > 0.72 && global_z < surface_z - 8;
+    // Large caverns (spherical regions)
+    float cavern1 = fbm(vec3(wx * 0.02, wy * 0.02, wz * 0.015));
+    bool is_cavern = cavern1 > 0.48 && global_z < surface_z - 15 && global_z > -60;
     
-    // Underground caverns at specific depths
-    float cavern_depth = abs(float(global_z) + 30.0);
-    float cavern_noise = fbm(vec3(wx * 0.03, wy * 0.03, wz * 0.02));
-    bool is_cavern = cavern_noise > 0.52 && cavern_depth < 20.0;
+    // Near-surface caves (shallow, common)
+    float shallow = noise(vec3(wx * 0.08, wy * 0.08, wz * 0.06 + seed * 2.0));
+    bool is_shallow_cave = shallow > 0.65 && global_z < surface_z - 3 && global_z > surface_z - 20;
     
     // Combine cave types
-    bool carved = is_cave || is_tunnel || is_cavern;
+    bool carved = is_worm_cave || is_cavern || is_shallow_cave;
     
     uint mat_id = 0u; // AIR
     float dens = 1.225;
