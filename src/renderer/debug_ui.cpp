@@ -246,6 +246,60 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
                 ImGui::SameLine();
                 ImGui::Text("Glyph: '%c'", render->glyph);
             }
+            
+            // Needs (Survival bars)
+            if (auto* needs = registry->try_get<entities::Needs>(selected_entity)) {
+                ImGui::Separator();
+                ImGui::Text("Survival Status");
+                
+                // Hypoxia state label
+                const char* hypoxia_label = "Normal";
+                ImVec4 state_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f); // Green
+                switch (needs->hypoxia_state) {
+                    case entities::HypoxiaState::CONFUSED:
+                        hypoxia_label = "CONFUSED";
+                        state_color = ImVec4(0.9f, 0.7f, 0.1f, 1.0f); // Yellow
+                        break;
+                    case entities::HypoxiaState::COLLAPSED:
+                        hypoxia_label = "COLLAPSED";
+                        state_color = ImVec4(0.9f, 0.3f, 0.1f, 1.0f); // Orange
+                        break;
+                    case entities::HypoxiaState::DEAD:
+                        hypoxia_label = "DEAD";
+                        state_color = ImVec4(0.5f, 0.0f, 0.0f, 1.0f); // Dark Red
+                        break;
+                    default: break;
+                }
+                ImGui::TextColored(state_color, "State: %s", hypoxia_label);
+                
+                // O2 bar (cyan)
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.0f, 0.8f, 0.9f, 1.0f));
+                ImGui::ProgressBar(needs->oxygen, ImVec2(-1, 12), "");
+                ImGui::SameLine(0, 5);
+                ImGui::Text("O2: %.0f%%", needs->oxygen * 100.0f);
+                ImGui::PopStyleColor();
+                
+                // Hunger bar (orange)
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.9f, 0.6f, 0.1f, 1.0f));
+                ImGui::ProgressBar(needs->hunger, ImVec2(-1, 12), "");
+                ImGui::SameLine(0, 5);
+                ImGui::Text("Hunger: %.0f%%", needs->hunger * 100.0f);
+                ImGui::PopStyleColor();
+                
+                // Thirst bar (blue)
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.5f, 0.9f, 1.0f));
+                ImGui::ProgressBar(needs->thirst, ImVec2(-1, 12), "");
+                ImGui::SameLine(0, 5);
+                ImGui::Text("Thirst: %.0f%%", needs->thirst * 100.0f);
+                ImGui::PopStyleColor();
+                
+                // Fatigue bar (yellow, inverted - low is good)
+                ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.9f, 0.9f, 0.2f, 1.0f));
+                ImGui::ProgressBar(1.0f - needs->fatigue, ImVec2(-1, 12), "");
+                ImGui::SameLine(0, 5);
+                ImGui::Text("Energy: %.0f%%", (1.0f - needs->fatigue) * 100.0f);
+                ImGui::PopStyleColor();
+            }
 
         } else {
             ImGui::TextDisabled("Select an entity...");

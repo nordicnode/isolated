@@ -91,7 +91,7 @@ private:
 
   // View state
   int current_z_ = 0;
-  OverlayType active_overlay_ = OverlayType::PRESSURE;
+  OverlayType active_overlay_ = OverlayType::NONE;
 
   // Simulation control
   bool paused_ = false;

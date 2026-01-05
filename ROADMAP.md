@@ -138,10 +138,10 @@ Phase 8: Polish & Advanced Rendering    [Weeks 43-50]
 ## 2.1 Core Physiological Needs
 
 ### 2.1.1 Oxygen & Breathing
-- [ ] 🔴 **O2 consumption component** — Rate varies by activity level
-- [ ] 🔴 **CO2 as entity gas source** — Exhale into LBM simulation
-- [ ] 🔴 **Hypoxia stages** — Confusion → collapse → death (timed)
-- [ ] 🔴 **Visual: breathing indicator** — Colored bar in entity inspector
+- [x] 🔴 **O2 consumption component** — Rate varies by activity level
+- [ ] 🔴 **CO2 as entity gas source** — Exhale into LBM simulation (API needed)
+- [x] 🔴 **Hypoxia stages** — Confusion → collapse → death (timed)
+- [x] 🔴 **Visual: breathing indicator** — Colored bar in entity inspector
 - [ ] 🟡 **Suit O2 tank** — Limited supply when suited
 - [ ] 🟢 **Breath-holding** — Short vacuum exposure
 

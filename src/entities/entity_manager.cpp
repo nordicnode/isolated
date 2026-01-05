@@ -29,6 +29,7 @@ entt::entity EntityManager::spawn_astronaut(float x, float y, int z,
                  static_cast<unsigned char>(dist_blue(rng_)), 255};
   
   registry_.emplace<Renderable>(entity, '@', color);
+  registry_.emplace<Needs>(entity); // Default needs (full O2, hunger, thirst)
 
   return entity;
 }

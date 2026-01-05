@@ -17,6 +17,7 @@
 #include <isolated/renderer/renderer.hpp>
 #include <isolated/thermal/heat_engine.hpp>
 #include <isolated/entities/entity_manager.hpp>
+#include <isolated/entities/needs_system.hpp>
 
 using namespace isolated;
 
@@ -180,6 +181,9 @@ int main() {
       circulation.step(fixed_dt);
       blood_chem.step(fixed_dt);
       entity_manager.update(fixed_dt);
+      
+      // Update astronaut needs (O2 consumption, hypoxia)
+      entities::NeedsSystem::update(fixed_dt, entity_manager.registry(), fluids);
       
       sim_time += fixed_dt;
       accumulator -= fixed_dt;
