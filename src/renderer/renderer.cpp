@@ -112,11 +112,11 @@ void Renderer::handle_overlay_input() {
   if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_GRAVE))
     active_overlay_ = OverlayType::NONE;
 
-  // Z-level with Q/E
+  // Z-level with Q/E (allow negative for underground)
   if (IsKeyPressed(KEY_E))
-    current_z_ = std::min(current_z_ + 1, static_cast<int>(grid_nz_) - 1);
+    current_z_ = std::min(current_z_ + 1, 150);  // Max Z = 150 (well above surface)
   if (IsKeyPressed(KEY_Q))
-    current_z_ = std::max(current_z_ - 1, 0);
+    current_z_ = std::max(current_z_ - 1, -100);  // Min Z = -100 (deep underground)
 }
 
 void Renderer::handle_simulation_input() {
@@ -251,7 +251,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                     if (mat == world::Material::AIR) continue;
                     
                     int mat_val = static_cast<int>(mat);
-                    if (mat_val < 0 || mat_val > 50) continue;
+                    if (mat_val < 0 || mat_val > 110) continue;  // Valid range includes ores (100-101)
                     
                     // Material colors (expanded)
                     Color base_color = {80, 80, 80, 255};
