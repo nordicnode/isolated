@@ -279,6 +279,25 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
              10, 10, 20, YELLOW);
 }
 
+void Renderer::draw_cursor(int x, int y, int z, Color color) {
+    if (z != current_z_) return; // Only draw if on current layer
+    
+    int tile = config_.tile_size;
+    
+    // Draw thick border
+    DrawRectangleLinesEx({
+        (float)x * tile, 
+        (float)y * tile, 
+        (float)tile, 
+        (float)tile
+    }, 2.0f, color);
+    
+    // Slight fill
+    Color fill = color;
+    fill.a = 30;
+    DrawRectangle(x * tile, y * tile, tile, tile, fill);
+}
+
 Color Renderer::get_cell_color(const fluids::LBMEngine &fluids,
                                const thermal::ThermalEngine &thermal,
                                size_t x, size_t y, int z, unsigned int hash) const {

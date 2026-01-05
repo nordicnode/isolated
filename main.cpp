@@ -327,6 +327,12 @@ int main() {
     game_renderer.draw_chunks(&chunk_manager); 
     // game_renderer.draw_grid(fluids, thermal); // Disable old flat grid
     game_renderer.draw_entities(&entity_manager.registry());
+    
+    // Draw cursor highlight if inspecting
+    if (debug_ui.is_tile_locked()) {
+        auto [ix, iy, iz] = debug_ui.get_inspected_tile();
+        game_renderer.draw_cursor(ix, iy, iz, {255, 200, 0, 255}); // Gold highlight
+    }
 
     // Exit camera mode for ImGui (screen-space rendering)
     EndMode2D();
@@ -334,8 +340,10 @@ int main() {
     // Draw ImGui sidebar
     debug_ui.begin_frame();
     debug_ui.draw_sidebar(fluids, thermal, game_renderer.get_camera(),
-                          render_config.tile_size, paused, time_scale,
+                          render_config.tile_size, game_renderer.get_z_level(),
+                          paused, time_scale,
                           sim_step_time_ms, sim_time,
+                          &chunk_manager,
                           &entity_manager.registry(),
                           game_renderer.get_selected_entity());
     debug_ui.end_frame();

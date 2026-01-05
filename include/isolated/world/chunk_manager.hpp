@@ -58,6 +58,7 @@ public:
      */
     Material get_material(int world_x, int world_y, int world_z);
     double get_temperature(int world_x, int world_y, int world_z);
+    double get_density(int world_x, int world_y, int world_z);
     
     /**
      * @brief Set voxel at world coordinates.

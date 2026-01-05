@@ -1,25 +1,33 @@
 # Isolated (C++)
 
-High-performance habitat simulation framework written in modern C++20 with **optional CUDA GPU acceleration** and a **Dwarf Fortress-inspired visual interface**.
+High-performance habitat simulation framework written in modern C++20 with **GPU-accelerated physics** (OpenGL Compute Shaders) and a **Dwarf Fortress-inspired 3D tile interface**.
 
-![Dwarf Fortress-style ASCII rendering with real-time simulation data](docs/screenshot.png)
+![Dwarf Fortress-style terrain rendering with real-time simulation](docs/screenshot.png)
 
 ## Features
 
-### 🎮 Visual Simulation (NEW)
-- **Raylib** tile-based ASCII rendering (Dwarf Fortress-style)
+### 🎮 Visual Simulation
+- **Raylib** tile-based rendering (Dwarf Fortress-style)
 - **Dear ImGui** unified sidebar UI with DF theme
+- **3D chunk-based world** with Z-level navigation (Q/E keys)
 - Real-time temperature, pressure, and oxygen overlays
-- Cell inspector (hover for live simulation data)
+- **Click-to-lock tile inspector** — left-click to examine any cell
 - Camera pan/zoom controls
 - Simulation pause, step, and time scale controls
 
-### 🚀 GPU-Accelerated Fluid Dynamics (LBM)
-- D3Q19 lattice with MRT collision
-- **CUDA kernels** for 20× speedup (optional, CPU fallback available)
-- **Sparse readback** for efficient agent queries (~10µs)
-- Large Eddy Simulation (LES) turbulence
+### 🌍 World System (NEW)
+- **GPU Terrain Generation** — Procedural noise on GPU via OpenGL Compute Shaders
+- **Chunk-based streaming** — 64³ voxel chunks loaded around camera
+- **Material types** — Granite, Basalt, Limestone, Soil, Water, Ores, Gases
+- **Geological stratification** — Depth-based rock layers with thermal gradient
+- **Z-level rendering** — Navigate vertically through underground layers
+
+### 🚀 GPU-Accelerated Physics
+- **LBM Fluids** — D2Q9 lattice with BGK collision (OpenGL Compute)
+- **Thermal Engine** — 2D heat diffusion on GPU
+- **Terrain Generation** — Simplex noise and FBM on GPU
 - Multi-species gas tracking (O₂, N₂, CO₂, H₂O, CO)
+- CPU fallback for systems without OpenGL 4.3+
 
 ### 🔥 Multiphase Physics
 - Magnus-Tetens condensation/evaporation
@@ -30,44 +38,22 @@ High-performance habitat simulation framework written in modern C++20 with **opt
 - 3D finite difference conduction
 - Stefan-Boltzmann radiation
 - Enthalpy-based phase changes
-- Optimized temp buffers (zero heap allocation in hot loops)
+- Geothermal gradient in terrain
 
 ### 🧬 Human Physiology
 
 **Cardiovascular**
 - Windkessel circulation, Frank-Starling, HRV
 - Coagulation cascade (intrinsic/extrinsic pathways)
-- Anticoagulant effects (Heparin, Warfarin, DOACs)
 
 **Respiratory**
 - Hill equation hemoglobin, alveolar gas exchange
 - V/Q mismatch, dead space, work of breathing
-- Positive pressure ventilation (CPAP, BiPAP, HFNC)
-
-**Gas Transport Pathologies**
-- CO poisoning (Haldane equation, COHb kinetics)
-- Nitrogen narcosis (Martini's law, EAD)
-- Oxygen toxicity (CNS clock, UPTD)
-- Decompression sickness (Bühlmann model)
-
-**Neurological**
-- Cerebral autoregulation (Lassen curve)
-- Intracranial pressure (ICP) dynamics
-- Herniation risk assessment
-- Glasgow Coma Scale (GCS)
 
 **Other Systems**
 - Metabolic: ATP/glycogen, substrate utilization
 - Blood Chemistry: Henderson-Hasselbalch, electrolytes
-- Immune: WBC dynamics, infection, sepsis
-- Muscular: Fatigue, lactate production
 - Thermoregulation: Heat balance, sweating, shivering
-- Integumentary: Wounds, burns, healing
-
-### 🌍 World Generation
-- Perlin/Simplex noise
-- Geology layers with ore deposits
-- Cellular automata caverns
 
 ## Build
 
@@ -86,9 +72,6 @@ cmake --build . --config Release
 # Dependencies (Ubuntu)
 sudo apt install libeigen3-dev libfmt-dev libomp-dev cmake
 
-# Optional: CUDA support
-sudo apt install nvidia-cuda-toolkit
-
 # Build
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -105,7 +88,7 @@ make -j$(nproc)
 - **Eigen3** — Linear algebra
 - **fmt** — String formatting
 - **OpenMP** — CPU parallelization
-- **CUDA** — GPU acceleration (optional)
+- **OpenGL 4.3+** — GPU Compute Shaders
 
 ## Controls
 
@@ -113,44 +96,33 @@ make -j$(nproc)
 |-----|--------|
 | **WASD / Arrows** | Pan camera |
 | **Mouse Wheel** | Zoom |
+| **Q / E** | Z-level down/up |
+| **Left Click** | Lock tile inspector to cell |
+| **Right Click** | Unlock tile inspector |
 | **1 / 2 / 3 / 0** | Toggle overlay (Pressure/Temp/O2/None) |
 | **Space** | Pause/Resume simulation |
-| **Q / E** | Z-level up/down |
 | **+/-** | Adjust time scale |
 | **F3** | Toggle event log |
-
-## Performance
-
-| System | CPU | GPU | Speedup |
-|--------|-----|-----|---------|
-| LBM 100×100 | 1.6 ms | 0.11 ms | **15×** |
-| LBM 500×500 | ~40 ms | 1.8 ms | **22×** |
-| Sparse Readback (100 agents) | — | 10 µs | — |
-| Thermal 100×100 | 60 µs | — | — |
-| Biology (all systems) | <1 µs | — | — |
-
-**Total simulation: ~9 ms/step @ 60 FPS = 52% budget used**
 
 ## Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   GPU (CUDA)    │     │   CPU (OpenMP)  │     │   Renderer      │
+│   GPU (Compute) │     │   CPU (OpenMP)  │     │   Renderer      │
 ├─────────────────┤     ├─────────────────┤     ├─────────────────┤
-│ LBM Fluids      │◄───►│ Thermal Engine  │◄───►│ Raylib ASCII    │
-│ Sparse Readback │     │ Biology Systems │     │ ImGui Sidebar   │
-└─────────────────┘     │ World Gen       │     │ Overlays        │
-                        └─────────────────┘     └─────────────────┘
+│ LBM Fluids      │◄───►│ ChunkManager    │◄───►│ Raylib Tiles    │
+│ Thermal         │     │ Biology Systems │     │ ImGui Sidebar   │
+│ Terrain Gen     │     │ Entity System   │     │ Overlays        │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the complete development plan including:
-- Entity-Component System (EnTT)
+- Massive world scaling (10,000 × 10,000 × 150)
+- Advanced terrain (erosion, caves, rivers)
+- Chunk-based physics synchronization
 - Astronaut AI (Utility AI → GOAP)
-- Needs/Moods simulation
-- Building and equipment systems
-- Storytelling and events
 
 ## License
 

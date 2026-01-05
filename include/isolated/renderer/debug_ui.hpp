@@ -58,9 +58,10 @@ public:
   // Main unified sidebar (call this instead of individual panels)
   void draw_sidebar(const fluids::LBMEngine &fluids,
                     const thermal::ThermalEngine &thermal,
-                    const Camera2D &camera, int tile_size,
+                    const Camera2D &camera, int tile_size, int z_level,
                     bool &paused, float &time_scale,
                     double sim_step_time_ms, double sim_time,
+                    void* chunk_manager = nullptr,  // ChunkManager* passed as void* to avoid header dep
                     entt::registry* registry = nullptr,
                     entt::entity selected_entity = entt::null);
 
@@ -72,6 +73,10 @@ public:
 
   // Section toggles
   void toggle_log() { show_log_ = !show_log_; }
+
+  // State access
+  std::tuple<int, int, int> get_inspected_tile() const { return {inspected_x_, inspected_y_, inspected_z_}; }
+  bool is_tile_locked() const { return tile_locked_; }
 
 private:
   bool initialized_ = false;
@@ -87,6 +92,8 @@ private:
   // State
   int inspected_x_ = -1;
   int inspected_y_ = -1;
+  int inspected_z_ = 0;
+  bool tile_locked_ = false; // Click-to-lock feature
 };
 
 } // namespace renderer

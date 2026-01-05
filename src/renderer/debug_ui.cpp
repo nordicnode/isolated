@@ -7,6 +7,7 @@
 #include <isolated/fluids/lbm_engine.hpp>
 #include <isolated/thermal/heat_engine.hpp>
 #include <isolated/entities/components.hpp>
+#include <isolated/world/chunk_manager.hpp>
 
 #include "imgui.h"
 #include "rlImGui.h"
@@ -107,9 +108,10 @@ void DebugUI::end_frame() { rlImGuiEnd(); }
 
 void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
                            const thermal::ThermalEngine &thermal,
-                           const Camera2D &camera, int tile_size,
+                           const Camera2D &camera, int tile_size, int z_level,
                            bool &paused, float &time_scale,
                            double sim_step_time_ms, double sim_time,
+                           void* chunk_manager,
                            entt::registry* registry,
                            entt::entity selected_entity) {
   // Fixed left sidebar
@@ -175,41 +177,95 @@ void DebugUI::draw_sidebar(const fluids::LBMEngine &fluids,
 
       int cell_x = static_cast<int>(mouse_world.x / tile_size);
       int cell_y = static_cast<int>(mouse_world.y / tile_size);
-
-      if (cell_x >= 0 && cell_x < 200 && cell_y >= 0 && cell_y < 200 &&
-          mouse_screen.x > sidebar_width) {
+      
+      bool hovering_valid = (cell_x >= 0 && cell_y >= 0 && mouse_screen.x > sidebar_width);
+      
+      // Click-to-lock: left click on map locks the inspector to that tile
+      if (hovering_valid && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !is_capturing_mouse()) {
         inspected_x_ = cell_x;
         inspected_y_ = cell_y;
+        inspected_z_ = z_level;
+        tile_locked_ = true;
+      }
+      
+      // Right click or escape unlocks
+      if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || IsKeyPressed(KEY_ESCAPE)) {
+        tile_locked_ = false;
+      }
+      
+      // If not locked, update to hover position
+      if (!tile_locked_ && hovering_valid) {
+        inspected_x_ = cell_x;
+        inspected_y_ = cell_y;
+        inspected_z_ = z_level;
+      }
 
-        ImGui::Text("Pos: (%d, %d)", cell_x, cell_y);
+      if (inspected_x_ >= 0 && inspected_y_ >= 0) {
+        // Show lock status
+        if (tile_locked_) {
+          ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "LOCKED (right-click to unlock)");
+        }
+        
+        ImGui::Text("Pos: (%d, %d, %d)", inspected_x_, inspected_y_, inspected_z_);
+        ImGui::Separator();
+        
+        // === CHUNK MATERIAL INFO ===
+        if (chunk_manager) {
+          auto* cm = static_cast<world::ChunkManager*>(chunk_manager);
+          world::Material mat = cm->get_material(inspected_x_, inspected_y_, inspected_z_);
+          const char* mat_name = world::material_to_string(mat);
+          
+          // Color code by material type
+          ImVec4 mat_color;
+          if (mat == world::Material::AIR) {
+            mat_color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+          } else if (static_cast<int>(mat) < 10) { // Gases
+            mat_color = ImVec4(0.7f, 0.9f, 1.0f, 1.0f);
+          } else if (static_cast<int>(mat) < 20) { // Liquids
+            mat_color = ImVec4(0.2f, 0.6f, 1.0f, 1.0f);
+          } else { // Solids
+            mat_color = ImVec4(0.9f, 0.7f, 0.5f, 1.0f);
+          }
+          
+          ImGui::TextColored(mat_color, "Material: %s", mat_name);
+          
+          // Get chunk-specific temp/density
+          double chunk_temp = cm->get_temperature(inspected_x_, inspected_y_, inspected_z_);
+          double chunk_dens = cm->get_density(inspected_x_, inspected_y_, inspected_z_);
+          
+          ImGui::Text("Chunk Temp: %.0f K", chunk_temp);
+          ImGui::Text("Chunk Dens: %.1f kg/m³", chunk_dens);
+        }
+        
+        ImGui::Separator();
+        
+        // === PHYSICS INFO (from flat LBM/Thermal) ===
+        if (inspected_x_ < 200 && inspected_y_ < 200) {
+          double density = fluids.get_density(inspected_x_, inspected_y_, 0);
+          auto velocity = fluids.get_velocity(inspected_x_, inspected_y_, 0);
+          ImGui::Text("Pressure: %.3f", density);
+          ImGui::Text("Flow: (%.2f, %.2f)", velocity[0], velocity[1]);
 
-        // Fluids
-        double density = fluids.get_density(cell_x, cell_y, 0);
-        auto velocity = fluids.get_velocity(cell_x, cell_y, 0);
-        ImGui::Text("Pressure: %.3f", density);
-        ImGui::Text("Flow: (%.2f, %.2f)", velocity[0], velocity[1]);
+          // Gas composition
+          double o2 = fluids.get_species_density("O2", inspected_x_, inspected_y_, 0);
+          double n2 = fluids.get_species_density("N2", inspected_x_, inspected_y_, 0);
+          double co2 = fluids.get_species_density("CO2", inspected_x_, inspected_y_, 0);
+          double total = o2 + n2 + co2 + 1e-10;
 
-        // Gas composition
-        double o2 = fluids.get_species_density("O2", cell_x, cell_y, 0);
-        double n2 = fluids.get_species_density("N2", cell_x, cell_y, 0);
-        double co2 = fluids.get_species_density("CO2", cell_x, cell_y, 0);
-        double total = o2 + n2 + co2 + 1e-10;
+          ImGui::Text("O2: %.0f%% N2: %.0f%%", (o2/total)*100, (n2/total)*100);
+          ImGui::Text("CO2: %.2f%%", (co2/total)*100);
 
-        ImGui::Text("O2: %.0f%% N2: %.0f%%", (o2/total)*100, (n2/total)*100);
-        ImGui::Text("CO2: %.2f%%", (co2/total)*100);
-
-        // Temperature
-        double temp = thermal.get_temperature(cell_x, cell_y, 0);
-        ImGui::PushStyleColor(ImGuiCol_Text,
-            temp > 350 ? ImVec4(1.0f, 0.5f, 0.2f, 1.0f) :
-            temp < 270 ? ImVec4(0.4f, 0.7f, 1.0f, 1.0f) :
-                         ImVec4(0.85f, 0.75f, 0.45f, 1.0f));
-        ImGui::Text("Temp: %.0f K (%.0f C)", temp, temp - 273.15);
-        ImGui::PopStyleColor();
+          // Temperature
+          double temp = thermal.get_temperature(inspected_x_, inspected_y_, 0);
+          ImGui::PushStyleColor(ImGuiCol_Text,
+              temp > 350 ? ImVec4(1.0f, 0.5f, 0.2f, 1.0f) :
+              temp < 270 ? ImVec4(0.4f, 0.7f, 1.0f, 1.0f) :
+                           ImVec4(0.85f, 0.75f, 0.45f, 1.0f));
+          ImGui::Text("Temp: %.0f K (%.0f C)", temp, temp - 273.15);
+          ImGui::PopStyleColor();
+        }
       } else {
-        ImGui::TextDisabled("Hover over map...");
-        inspected_x_ = -1;
-        inspected_y_ = -1;
+        ImGui::TextDisabled("Hover over map (Left-click to lock)");
       }
     }
 

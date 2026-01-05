@@ -62,6 +62,7 @@ public:
   // Forward declare to avoid header dependency hell if needed, 
   // but better to just include chunk_manager.hpp if possible or use forward decl
   void draw_chunks(void* chunk_manager_ptr); // Using void* to avoid heavy include dependency in header
+  void draw_cursor(int x, int y, int z, Color color); // Draw highlight cursor
   
   // Entity rendering
   // Note: Using template to avoid dragging full EnTT header here if possible, 

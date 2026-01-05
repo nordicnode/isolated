@@ -144,6 +144,17 @@ void ChunkManager::set_temperature(int world_x, int world_y, int world_z, double
     chunk->dirty = true;
 }
 
+double ChunkManager::get_density(int world_x, int world_y, int world_z) {
+    Chunk* chunk = get_chunk(world_x, world_y, world_z);
+    if (!chunk) return 1.225; // Default air density
+    
+    auto local_x = ((world_x % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+    auto local_y = ((world_y % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+    auto local_z = ((world_z % static_cast<int>(CHUNK_SIZE)) + CHUNK_SIZE) % CHUNK_SIZE;
+    
+    return chunk->density[Chunk::idx(local_x, local_y, local_z)];
+}
+
 std::vector<Chunk*> ChunkManager::get_loaded_chunks() {
     std::vector<Chunk*> result;
     result.reserve(loaded_chunks_.size());
