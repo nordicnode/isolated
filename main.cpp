@@ -284,12 +284,28 @@ int main() {
         fluids.step(fixed_dt);
       }
       
-      // Thermal physics: GPU accelerated
+      // Thermal physics: GPU accelerated with chunk sync
       if (gpu_thermal_ready) {
-        gpu_thermal.step(fixed_dt);
-        // Sync back every 10 steps for visualization (not every step - expensive!)
+        // Sync chunk data TO physics buffer (every 10 steps to reduce overhead)
+        static std::vector<double> physics_temp_buffer;
+        static std::vector<double> physics_density_buffer;
+        int z_level = game_renderer.get_z_level();
+        
         if (step_count % 10 == 0) {
-          gpu_thermal.download_temperature(thermal.temperature_field());
+          chunk_manager.sync_to_physics(physics_temp_buffer, physics_density_buffer, 
+                                        200, 200, z_level);
+          gpu_thermal.upload_temperature(physics_temp_buffer);
+        }
+        
+        gpu_thermal.step(fixed_dt);
+        
+        // Sync results back FROM physics to chunks (every 10 steps)
+        if (step_count % 10 == 0) {
+          gpu_thermal.download_temperature(physics_temp_buffer);
+          chunk_manager.sync_from_physics(physics_temp_buffer, physics_density_buffer,
+                                          200, 200, z_level);
+          // Also update CPU thermal for visualization
+          thermal.temperature_field() = physics_temp_buffer;
         }
       } else {
         thermal.step(fixed_dt);

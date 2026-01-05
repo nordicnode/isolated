@@ -202,6 +202,53 @@ void ChunkManager::save_all() {
     }
 }
 
+void ChunkManager::sync_to_physics(std::vector<double>& temp_buffer,
+                                   std::vector<double>& density_buffer,
+                                   int physics_width, int physics_height, int z_level) {
+    // Resize buffers if needed
+    size_t size = physics_width * physics_height;
+    if (temp_buffer.size() != size) temp_buffer.resize(size, 293.0);
+    if (density_buffer.size() != size) density_buffer.resize(size, 1.0);
+    
+    // Calculate world origin for physics grid (centered on camera)
+    int origin_x = (camera_chunk_.x * static_cast<int>(CHUNK_SIZE)) - physics_width / 2;
+    int origin_y = (camera_chunk_.y * static_cast<int>(CHUNK_SIZE)) - physics_height / 2;
+    
+    // Copy chunk data to physics buffers
+    for (int py = 0; py < physics_height; ++py) {
+        for (int px = 0; px < physics_width; ++px) {
+            int world_x = origin_x + px;
+            int world_y = origin_y + py;
+            size_t idx = py * physics_width + px;
+            
+            temp_buffer[idx] = get_temperature(world_x, world_y, z_level);
+            density_buffer[idx] = get_density(world_x, world_y, z_level);
+        }
+    }
+}
+
+void ChunkManager::sync_from_physics(const std::vector<double>& temp_buffer,
+                                     const std::vector<double>& density_buffer,
+                                     int physics_width, int physics_height, int z_level) {
+    if (temp_buffer.size() != static_cast<size_t>(physics_width * physics_height)) return;
+    
+    // Calculate world origin (same as sync_to_physics)
+    int origin_x = (camera_chunk_.x * static_cast<int>(CHUNK_SIZE)) - physics_width / 2;
+    int origin_y = (camera_chunk_.y * static_cast<int>(CHUNK_SIZE)) - physics_height / 2;
+    
+    // Copy physics results back to chunks
+    for (int py = 0; py < physics_height; ++py) {
+        for (int px = 0; px < physics_width; ++px) {
+            int world_x = origin_x + px;
+            int world_y = origin_y + py;
+            size_t idx = py * physics_width + px;
+            
+            set_temperature(world_x, world_y, z_level, temp_buffer[idx]);
+            // Note: density is typically computed by physics, not written back
+        }
+    }
+}
+
 void ChunkManager::load_chunk(ChunkCoord coords) {
     // Evict oldest chunk if at capacity
     while (loaded_chunks_.size() >= config_.max_loaded) {

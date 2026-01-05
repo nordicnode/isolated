@@ -83,6 +83,22 @@ public:
     void save_all();
     
     /**
+     * @brief Sync chunk data to physics buffers (before physics step).
+     * Copies temperature/density from visible chunks to flat physics arrays.
+     */
+    void sync_to_physics(std::vector<double>& temp_buffer,
+                         std::vector<double>& density_buffer,
+                         int physics_width, int physics_height, int z_level);
+    
+    /**
+     * @brief Sync physics results back to chunks (after physics step).
+     * Copies updated values from physics arrays back to chunks.
+     */
+    void sync_from_physics(const std::vector<double>& temp_buffer,
+                           const std::vector<double>& density_buffer,
+                           int physics_width, int physics_height, int z_level);
+    
+    /**
      * @brief Set terrain generator callback.
      */
     using TerrainGenerator = std::function<void(Chunk&)>;
