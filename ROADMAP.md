@@ -35,6 +35,8 @@ Thermodynamics should affect simulation speed: fluid viscosity, reaction rates, 
 | Neurological | ✅ Complete | Cerebral autoregulation, ICP, GCS |
 | Blood Chemistry | ✅ Complete | pH balance, electrolytes |
 | World Generation | ✅ Partial | Noise, geology, hydrology basics |
+| **Visual Renderer** | ✅ Complete | Raylib ASCII + ImGui sidebar (DF-style) |
+| **Debug UI** | ✅ Complete | Cell inspector, performance, controls |
 
 ### Major Gaps 🔴
 - ~~**No Visualization** — Pure simulation engine, no way to see it~~ ✅ RESOLVED
@@ -534,13 +536,15 @@ Phase 8: Polish & Advanced Rendering    [Weeks 43-50]
 2. [x] Camera pan/zoom
 3. [ ] EnTT registry with Position, Velocity components
 4. [ ] Astronaut entity as colored circle
-5. [ ] ImGui integration: entity inspector, simulation controls
+5. [x] ImGui integration: DF-style unified sidebar, simulation controls
 6. [x] LBM pressure overlay (color gradient)
 7. [x] Thermal overlay (heat map)
-8. [ ] Cell click inspector (gas composition, temp)
+8. [x] Cell hover inspector (gas composition, temp)
+9. [x] DF-style ASCII rendering with procedural variation
+10. [x] Oxygen overlay
 
 ### Deliverable
-**A window showing the fluid/thermal simulation with clickable debug UI.**
+**A window showing the fluid/thermal simulation with DF-style UI.** ✅ COMPLETE
 
 ---
 
