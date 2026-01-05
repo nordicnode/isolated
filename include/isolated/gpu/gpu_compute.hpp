@@ -92,5 +92,37 @@ private:
     bool swap_buffers_ = false;
 };
 
+/**
+ * @brief LBM D2Q9 fluid simulation compute kernel.
+ */
+class LBMComputeKernel {
+public:
+    bool init(size_t width, size_t height);
+    void step(double dt, double omega);
+    void upload_state(const std::vector<double>& rho, 
+                      const std::vector<double>& ux,
+                      const std::vector<double>& uy);
+    void download_state(std::vector<double>& rho,
+                        std::vector<double>& ux,
+                        std::vector<double>& uy);
+    void set_solid(size_t x, size_t y, bool is_solid);
+    void destroy();
+
+private:
+    ComputeShader collide_shader_;
+    ComputeShader stream_shader_;
+    ComputeShader macro_shader_;
+    
+    GPUBuffer f_buffer_;       // Distribution functions (9 * width * height floats)
+    GPUBuffer f_new_buffer_;   // New distributions (double-buffered)
+    GPUBuffer rho_buffer_;     // Density
+    GPUBuffer ux_buffer_;      // Velocity X
+    GPUBuffer uy_buffer_;      // Velocity Y
+    GPUBuffer solid_buffer_;   // Solid obstacles
+    
+    size_t width_ = 0, height_ = 0;
+    bool swap_buffers_ = false;
+};
+
 } // namespace gpu
 } // namespace isolated

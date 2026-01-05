@@ -102,6 +102,15 @@ int main() {
   } else {
     std::cout << "[WARN] GPU: Thermal compute shader failed, using CPU fallback" << std::endl;
   }
+  
+  // Initialize GPU Compute for LBM fluid simulation
+  gpu::LBMComputeKernel gpu_lbm;
+  bool gpu_lbm_ready = gpu_lbm.init(200, 200);
+  if (gpu_lbm_ready) {
+    std::cout << "[OK] GPU: LBM compute kernel ready (200x200)" << std::endl;
+  } else {
+    std::cout << "[WARN] GPU: LBM compute shader failed, using CPU fallback" << std::endl;
+  }
 
   // Initialize Entity Manager (ECS)
   entities::EntityManager entity_manager;
@@ -239,8 +248,13 @@ int main() {
         chunk_manager.update(cam.target.x, cam.target.y, 0.0f);
       }
       
-      // Physics on GPU when available, CPU fallback otherwise
-      fluids.step(fixed_dt);
+      // LBM Fluid physics: GPU accelerated
+      if (gpu_lbm_ready) {
+        gpu_lbm.step(fixed_dt, 1.7); // omega ~1.7 for viscosity
+        // No sync needed every step - GPU handles it internally
+      } else {
+        fluids.step(fixed_dt);
+      }
       
       // Thermal physics: GPU accelerated
       if (gpu_thermal_ready) {
