@@ -516,45 +516,90 @@ void main() {
     // Index in linear buffer (64x64x64)
     int idx = lx + 64 * (ly + 64 * lz);
     
-    // Scale for terrain features
+    // === TERRAIN HEIGHT with erosion ===
     float scale = 0.02;
-    float height_val = fbm(vec3(wx * scale, wy * scale, seed)) * 30.0;
-    float sea_level = 0.0; // Assume z=0 is sea level for simplicity in world coords
-    int surface_z = int(height_val);
+    float base_height = fbm(vec3(wx * scale, wy * scale, seed)) * 30.0;
     
-    // Determine material by depth
-    // World origin is at bottom of chunk? No, chunk_z is world coord
+    // Erosion: add smaller-scale variation for realistic surfaces
+    float erosion = noise(vec3(wx * 0.08, wy * 0.08, seed * 2.0)) * 5.0;
+    float overhang = noise(vec3(wx * 0.05, wz * 0.1, wy * 0.05 + seed)) * 3.0;
+    
+    int surface_z = int(base_height + erosion);
     int global_z = int(wz);
     
-    uint mat_id = 0; // AIR
+    // === CAVE GENERATION (3D noise) ===
+    // Large caves
+    float cave_noise = fbm(vec3(wx * 0.04, wy * 0.04, wz * 0.06 + seed));
+    float cave_threshold = 0.58; // Higher = smaller caves
+    bool is_cave = cave_noise > cave_threshold && global_z < surface_z - 3;
+    
+    // Smaller tunnels/worm caves
+    float tunnel_noise = noise(vec3(wx * 0.1 + seed, wy * 0.1, wz * 0.15));
+    bool is_tunnel = tunnel_noise > 0.72 && global_z < surface_z - 8;
+    
+    // Underground caverns at specific depths
+    float cavern_depth = abs(float(global_z) + 30.0);
+    float cavern_noise = fbm(vec3(wx * 0.03, wy * 0.03, wz * 0.02));
+    bool is_cavern = cavern_noise > 0.52 && cavern_depth < 20.0;
+    
+    // Combine cave types
+    bool carved = is_cave || is_tunnel || is_cavern;
+    
+    uint mat_id = 0u; // AIR
     float dens = 1.225;
     float temp = 288.0; // 15C
     
     if (global_z < surface_z) {
-        // Underground
-        if (global_z < surface_z - 20) {
-            mat_id = 30u; // GRANITE = 30
-            dens = 2700.0;
-        } else if (global_z < surface_z - 5) {
-            // Noise for rock variation
+        // Underground - but check for caves
+        if (carved) {
+            // Cave interior - air
+            mat_id = 0u;
+            dens = 1.225;
+            // Caves are slightly warmer from geothermal
+            float depth = float(surface_z - global_z);
+            temp = 290.0 + depth * 0.015;
+        } else if (global_z < surface_z - 25) {
+            // Deep rock layer
+            float ore_noise = noise(vec3(wx * 0.2, wy * 0.2, wz * 0.2 + seed * 3.0));
+            if (ore_noise > 0.85) {
+                mat_id = 38u; // IRON_ORE = 38
+                dens = 5000.0;
+            } else if (ore_noise > 0.80) {
+                mat_id = 39u; // COPPER_ORE = 39  
+                dens = 4500.0;
+            } else {
+                mat_id = 30u; // GRANITE = 30
+                dens = 2700.0;
+            }
+        } else if (global_z < surface_z - 8) {
+            // Mid rock layer with variation
             float rock_noise = noise(vec3(wx*0.1, wy*0.1, wz*0.1));
             mat_id = (rock_noise > 0.5) ? 31u : 32u; // BASALT = 31, LIMESTONE = 32
             dens = 2500.0;
         } else {
-            mat_id = 37u; // SOIL = 37
-            dens = 1500.0;
+            // Soil layer with some rock outcrops (erosion effect)
+            float eroded = noise(vec3(wx * 0.15, wy * 0.15, wz * 0.2));
+            if (eroded > 0.7) {
+                mat_id = 32u; // LIMESTONE exposed
+                dens = 2500.0;
+            } else {
+                mat_id = 37u; // SOIL = 37
+                dens = 1500.0;
+            }
         }
         
-        // Geothermal gradient
-        float depth = float(surface_z - global_z);
-        temp = 288.0 + depth * 0.025;
+        // Geothermal gradient (unless cave)
+        if (!carved) {
+            float depth = float(surface_z - global_z);
+            temp = 288.0 + depth * 0.025;
+        }
     } else if (global_z < 0) {
-        // Underwater
+        // Underwater (sea level = 0)
         mat_id = 10u; // WATER = 10
         dens = 1000.0;
     } else {
         // Air
-        mat_id = 0u; // AIR = 0
+        mat_id = 0u;
         dens = 1.225;
     }
     
