@@ -27,9 +27,23 @@ void Renderer::init(const RendererConfig &config) {
                     static_cast<float>(config_.window_height) / 2.0f};
   camera_.rotation = 0.0f;
   camera_.zoom = 1.0f;
+
+  // Initialize grid texture for optimized rendering
+  int tex_width = static_cast<int>(grid_nx_ * config_.tile_size);
+  int tex_height = static_cast<int>(grid_ny_ * config_.tile_size);
+  grid_image_ = GenImageColor(tex_width, tex_height, BLACK);
+  grid_texture_ = LoadTextureFromImage(grid_image_);
+  grid_texture_initialized_ = true;
 }
 
-void Renderer::shutdown() { CloseWindow(); }
+void Renderer::shutdown() {
+  if (grid_texture_initialized_) {
+    UnloadTexture(grid_texture_);
+    UnloadImage(grid_image_);
+    grid_texture_initialized_ = false;
+  }
+  CloseWindow();
+}
 
 void Renderer::update_input() {
   handle_camera_input();
@@ -132,102 +146,81 @@ void Renderer::draw_grid(const fluids::LBMEngine &fluids,
                          const thermal::ThermalEngine &thermal) {
   int tile = config_.tile_size;
   int z = current_z_;
-  int font_size = tile - 2;
 
   size_t nx = grid_nx_;
   size_t ny = grid_ny_;
 
-  // DF-style ASCII floor characters
-  static const char *floor_chars[] = {".", ".", ".", ",", "`", "'"};
-  static const int n_floor = 6;
+  // OPTIMIZED: Write pixels to Image, upload once, draw single texture
+  // This reduces 10,000+ draw calls to just 1 for 100x100 grid
 
-  // TODO: OPTIMIZATION NEEDED FOR LARGE GRIDS (500x500+)
-  // Current approach: 10,000 DrawRectangle + DrawText calls per frame for 100x100
-  // This works at 60 FPS for 100x100 but will drop to ~5 FPS at 500x500.
-  // Fix: Render to an Image, upload to Texture2D once, draw single texture.
-  // Keep current code for debugging, refactor when scaling up grid size.
-
+  // Update the grid image pixel by pixel
   for (size_t y = 0; y < ny; ++y) {
     for (size_t x = 0; x < nx; ++x) {
-      int px = static_cast<int>(x * tile);
-      int py = static_cast<int>(y * tile);
-
       // Procedural variation based on position (deterministic noise)
       unsigned int hash = static_cast<unsigned int>(x * 374761393 + y * 668265263);
       hash = (hash ^ (hash >> 13)) * 1274126177;
-      int variant = hash % 100;
 
-      // DF-style base colors: dark browns and grays
-      Color bg_color, fg_color;
-      const char *glyph;
+      // Get cell color based on overlay
+      Color cell_color = get_cell_color(fluids, thermal, x, y, z, hash);
 
-      double temp = thermal.get_temperature(x, y, z);
-      double density = fluids.get_density(x, y, z);
+      // Fill tile pixels in the image
+      int px_start = static_cast<int>(x * tile);
+      int py_start = static_cast<int>(y * tile);
 
-      if (active_overlay_ == OverlayType::NONE) {
-        // Classic DF floor look
-        if (variant < 5) {
-          // Occasional rock/ore
-          bg_color = {35, 30, 25, 255};
-          fg_color = {80, 75, 65, 255};
-          glyph = "*";
-        } else {
-          // Normal floor
-          bg_color = {25, 22, 18, 255};
-          fg_color = {static_cast<unsigned char>(100 + (variant % 30)),
-                      static_cast<unsigned char>(90 + (variant % 25)),
-                      static_cast<unsigned char>(70 + (variant % 20)), 255};
-          glyph = floor_chars[hash % n_floor];
+      for (int ty = 0; ty < tile; ++ty) {
+        for (int tx = 0; tx < tile; ++tx) {
+          // Add subtle grid lines (1px darker border)
+          Color pixel_color = cell_color;
+          if (tx == tile - 1 || ty == tile - 1) {
+            pixel_color.r = static_cast<unsigned char>(pixel_color.r * 0.7);
+            pixel_color.g = static_cast<unsigned char>(pixel_color.g * 0.7);
+            pixel_color.b = static_cast<unsigned char>(pixel_color.b * 0.7);
+          }
+          ImageDrawPixel(&grid_image_, px_start + tx, py_start + ty, pixel_color);
         }
-      } else if (active_overlay_ == OverlayType::TEMPERATURE) {
-        // Temperature visualization
-        Color overlay = temperature_to_color(temp, 200.0, 500.0);
-        bg_color = {static_cast<unsigned char>(overlay.r / 4),
-                    static_cast<unsigned char>(overlay.g / 4),
-                    static_cast<unsigned char>(overlay.b / 4), 255};
-        fg_color = overlay;
-
-        // Temperature-appropriate glyph
-        if (temp > 400) {
-          glyph = "~";  // Hot/fire
-        } else if (temp < 250) {
-          glyph = "#";  // Frozen
-        } else {
-          glyph = floor_chars[hash % n_floor];
-        }
-      } else if (active_overlay_ == OverlayType::PRESSURE) {
-        Color overlay = pressure_to_color(density, 0.95, 1.05);
-        bg_color = {static_cast<unsigned char>(overlay.r / 4),
-                    static_cast<unsigned char>(overlay.g / 4),
-                    static_cast<unsigned char>(overlay.b / 4), 255};
-        fg_color = overlay;
-        glyph = floor_chars[hash % n_floor];
-      } else if (active_overlay_ == OverlayType::OXYGEN) {
-        double o2 = fluids.get_species_density("O2", x, y, z);
-        double total = fluids.get_density(x, y, z);
-        double fraction = (total > 0) ? o2 / total : 0.0;
-        Color overlay = oxygen_to_color(fraction, 0.16, 0.21);
-        bg_color = {static_cast<unsigned char>(overlay.r / 4),
-                    static_cast<unsigned char>(overlay.g / 4),
-                    static_cast<unsigned char>(overlay.b / 4), 255};
-        fg_color = overlay;
-        glyph = floor_chars[hash % n_floor];
-      } else {
-        bg_color = {25, 22, 18, 255};
-        fg_color = {80, 75, 65, 255};
-        glyph = ".";
       }
-
-      // Draw tile background
-      DrawRectangle(px, py, tile, tile, bg_color);
-
-      // Draw ASCII character centered in tile
-      int text_x = px + (tile - MeasureText(glyph, font_size)) / 2;
-      int text_y = py + (tile - font_size) / 2;
-      DrawText(glyph, text_x, text_y, font_size, fg_color);
     }
   }
+
+  // Upload updated image to GPU texture (single operation)
+  UpdateTexture(grid_texture_, grid_image_.data);
+
+  // Draw the entire grid with one draw call
+  DrawTexture(grid_texture_, 0, 0, WHITE);
 }
+
+// Helper: Get color for a cell based on current overlay
+Color Renderer::get_cell_color(const fluids::LBMEngine &fluids,
+                               const thermal::ThermalEngine &thermal,
+                               size_t x, size_t y, int z, unsigned int hash) const {
+  int variant = hash % 100;
+
+  double temp = thermal.get_temperature(x, y, z);
+  double density = fluids.get_density(x, y, z);
+
+  if (active_overlay_ == OverlayType::NONE) {
+    // Classic DF floor look
+    if (variant < 5) {
+      return {35, 30, 25, 255}; // Occasional rock
+    } else {
+      return {static_cast<unsigned char>(25 + (variant % 15)),
+              static_cast<unsigned char>(22 + (variant % 12)),
+              static_cast<unsigned char>(18 + (variant % 10)), 255};
+    }
+  } else if (active_overlay_ == OverlayType::TEMPERATURE) {
+    return temperature_to_color(temp, 200.0, 500.0);
+  } else if (active_overlay_ == OverlayType::PRESSURE) {
+    return pressure_to_color(density, 0.95, 1.05);
+  } else if (active_overlay_ == OverlayType::OXYGEN) {
+    double o2 = fluids.get_species_density("O2", x, y, z);
+    double total = fluids.get_density(x, y, z);
+    double fraction = (total > 0) ? o2 / total : 0.0;
+    return oxygen_to_color(fraction, 0.16, 0.21);
+  }
+
+  return {25, 22, 18, 255};
+}
+
 
 void Renderer::draw_hud() {
   EndMode2D(); // Exit camera mode for HUD

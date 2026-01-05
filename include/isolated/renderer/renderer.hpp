@@ -89,11 +89,19 @@ private:
   Vector2 last_mouse_pos_{};
   bool dragging_ = false;
 
+  // Optimized grid rendering (texture-based for large grids)
+  Image grid_image_{};
+  Texture2D grid_texture_{};
+  bool grid_texture_initialized_ = false;
+
   // Internal helpers
   void handle_camera_input();
   void handle_overlay_input();
   void handle_simulation_input();
   Color get_base_tile_color(bool is_solid) const;
+  Color get_cell_color(const fluids::LBMEngine &fluids,
+                       const thermal::ThermalEngine &thermal,
+                       size_t x, size_t y, int z, unsigned int hash) const;
 };
 
 // === Inline implementations ===
