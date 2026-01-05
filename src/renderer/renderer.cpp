@@ -141,6 +141,12 @@ void Renderer::draw_grid(const fluids::LBMEngine &fluids,
   static const char *floor_chars[] = {".", ".", ".", ",", "`", "'"};
   static const int n_floor = 6;
 
+  // TODO: OPTIMIZATION NEEDED FOR LARGE GRIDS (500x500+)
+  // Current approach: 10,000 DrawRectangle + DrawText calls per frame for 100x100
+  // This works at 60 FPS for 100x100 but will drop to ~5 FPS at 500x500.
+  // Fix: Render to an Image, upload to Texture2D once, draw single texture.
+  // Keep current code for debugging, refactor when scaling up grid size.
+
   for (size_t y = 0; y < ny; ++y) {
     for (size_t x = 0; x < nx; ++x) {
       int px = static_cast<int>(x * tile);
