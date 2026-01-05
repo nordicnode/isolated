@@ -346,6 +346,10 @@ int main() {
                           &chunk_manager,
                           &entity_manager.registry(),
                           game_renderer.get_selected_entity());
+    debug_ui.draw_right_sidebar(
+        game_renderer.get_z_level(),
+        game_renderer.get_overlay_type(),
+        chunk_manager.loaded_count());
     debug_ui.end_frame();
 
     game_renderer.end_frame();

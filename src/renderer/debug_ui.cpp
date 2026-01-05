@@ -453,6 +453,60 @@ void DebugUI::add_log(double sim_time, const std::string &message, int severity)
 
 void DebugUI::clear_log() { log_entries_.clear(); }
 
+void DebugUI::draw_right_sidebar(int z_level, int overlay_type, size_t chunk_count) {
+  float sidebar_width = 180.0f;
+  float screen_width = static_cast<float>(GetScreenWidth());
+  
+  ImGui::SetNextWindowPos(ImVec2(screen_width - sidebar_width, 0), ImGuiCond_Always);
+  ImGui::SetNextWindowSize(ImVec2(sidebar_width, 200), ImGuiCond_Always);
+  
+  ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                           ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+  
+  if (ImGui::Begin("##RightSidebar", nullptr, flags)) {
+    // World Info Header
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 0.9f, 1.0f));
+    ImGui::Text("WORLD");
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+    
+    // Z-Level with color
+    ImGui::Text("Z-Level:");
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f), "%d", z_level);
+    
+    // Chunks loaded
+    ImGui::Text("Chunks:");
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 0.6f, 1.0f), "%zu", chunk_count);
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    
+    // Overlay indicator with colored text
+    ImGui::Text("Overlay:");
+    ImGui::SameLine();
+    
+    const char* overlay_names[] = {"None", "Temp", "Pressure", "O2"};
+    ImVec4 overlay_colors[] = {
+      ImVec4(0.5f, 0.5f, 0.5f, 1.0f),  // None - gray
+      ImVec4(1.0f, 0.5f, 0.3f, 1.0f),  // Temp - orange/red
+      ImVec4(0.8f, 0.8f, 0.3f, 1.0f),  // Pressure - yellow
+      ImVec4(0.3f, 0.9f, 0.5f, 1.0f)   // O2 - green
+    };
+    
+    int idx = std::clamp(overlay_type, 0, 3);
+    ImGui::TextColored(overlay_colors[idx], "%s", overlay_names[idx]);
+    
+    ImGui::Spacing();
+    
+    // Controls hint
+    ImGui::TextDisabled("Q/E: Z-level");
+    ImGui::TextDisabled("1/2/3/0: Overlay");
+  }
+  ImGui::End();
+}
+
 bool DebugUI::is_capturing_mouse() const {
   return ImGui::GetIO().WantCaptureMouse;
 }

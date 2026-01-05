@@ -84,6 +84,7 @@ public:
   void clear_step_request() { step_requested_ = false; }
   float get_time_scale() const { return time_scale_; }
   int get_z_level() const { return current_z_; }
+  int get_overlay_type() const { return static_cast<int>(active_overlay_); }
   const Camera2D &get_camera() const { return camera_; }
 
 private:

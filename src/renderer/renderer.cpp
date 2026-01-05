@@ -264,7 +264,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(t * 255);
                             color.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
                             color.b = static_cast<unsigned char>((1.0 - t) * 255);
-                            color.a = (mat == world::Material::AIR) ? 40 : 100; // More transparent
+                            color.a = (mat == world::Material::AIR) ? 30 : 60; // Very transparent
                             break;
                         }
                         case OverlayType::PRESSURE: {
@@ -273,7 +273,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(d * 255);
                             color.g = static_cast<unsigned char>(d * 200);
                             color.b = static_cast<unsigned char>((1.0 - d) * 200);
-                            color.a = (mat == world::Material::AIR) ? 30 : 100; // More transparent
+                            color.a = (mat == world::Material::AIR) ? 20 : 60; // Very transparent
                             break;
                         }
                         case OverlayType::OXYGEN: {
@@ -283,7 +283,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>((1.0 - o) * 200);
                             color.g = static_cast<unsigned char>(o * 200);
                             color.b = 50;
-                            color.a = (mat == world::Material::AIR) ? 40 : 100; // More transparent
+                            color.a = (mat == world::Material::AIR) ? 30 : 60; // Very transparent
                             break;
                         }
                         default: break;
@@ -313,17 +313,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                            world::CHUNK_SIZE * tile, 
                            {255, 255, 255, 30});
     }
-    
-    // Debug info: show chunk count, Z-level, and active overlay
-    const char* overlay_name = "";
-    switch (active_overlay_) {
-        case OverlayType::NONE: overlay_name = ""; break;
-        case OverlayType::TEMPERATURE: overlay_name = "| TEMP"; break;
-        case OverlayType::PRESSURE: overlay_name = "| PRESSURE"; break;
-        case OverlayType::OXYGEN: overlay_name = "| O2"; break;
-    }
-    DrawText(TextFormat("Chunks: %d | Z: %d %s", (int)chunks.size(), z_layer, overlay_name), 
-             10, 10, 20, YELLOW);
+    // Debug info moved to ImGui right sidebar
 }
 
 void Renderer::draw_cursor(int x, int y, int z, Color color) {

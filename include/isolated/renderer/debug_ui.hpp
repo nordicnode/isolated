@@ -55,7 +55,6 @@ public:
   void begin_frame();
   void end_frame();
 
-  // Main unified sidebar (call this instead of individual panels)
   void draw_sidebar(const fluids::LBMEngine &fluids,
                     const thermal::ThermalEngine &thermal,
                     const Camera2D &camera, int tile_size, int z_level,
@@ -64,6 +63,9 @@ public:
                     void* chunk_manager = nullptr,  // ChunkManager* passed as void* to avoid header dep
                     entt::registry* registry = nullptr,
                     entt::entity selected_entity = entt::null);
+
+  // Right sidebar for world info
+  void draw_right_sidebar(int z_level, int overlay_type, size_t chunk_count);
 
   // Logging
   void add_log(double sim_time, const std::string &message, int severity = 0);
