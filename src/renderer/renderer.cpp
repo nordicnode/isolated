@@ -264,7 +264,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(t * 255);
                             color.g = static_cast<unsigned char>((1.0 - std::abs(t - 0.5) * 2.0) * 100);
                             color.b = static_cast<unsigned char>((1.0 - t) * 255);
-                            color.a = (mat == world::Material::AIR) ? 80 : 255;
+                            color.a = (mat == world::Material::AIR) ? 60 : 150; // Semi-transparent
                             break;
                         }
                         case OverlayType::PRESSURE: {
@@ -273,7 +273,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>(d * 255);
                             color.g = static_cast<unsigned char>(d * 200);
                             color.b = static_cast<unsigned char>((1.0 - d) * 200);
-                            color.a = (mat == world::Material::AIR) ? 40 : 255;
+                            color.a = (mat == world::Material::AIR) ? 40 : 150; // Semi-transparent
                             break;
                         }
                         case OverlayType::OXYGEN: {
@@ -283,7 +283,7 @@ void Renderer::draw_chunks(void* chunk_manager_ptr) {
                             color.r = static_cast<unsigned char>((1.0 - o) * 200);
                             color.g = static_cast<unsigned char>(o * 200);
                             color.b = 50;
-                            color.a = (mat == world::Material::AIR) ? 80 : 255;
+                            color.a = (mat == world::Material::AIR) ? 60 : 150; // Semi-transparent
                             break;
                         }
                         default: break;
