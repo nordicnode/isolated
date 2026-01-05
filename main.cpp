@@ -20,6 +20,8 @@
 #include <isolated/entities/needs_system.hpp>
 #include <isolated/entities/metabolism_system.hpp>
 #include <isolated/core/lod_zone_manager.hpp>
+#include <isolated/world/chunk_manager.hpp>
+#include <isolated/world/terrain_generator.hpp>
 
 using namespace isolated;
 
@@ -109,7 +111,29 @@ int main() {
   lod_config.viewport_padding = 50; // Cells around camera always update
   core::LODZoneManager lod_manager(lod_config);
   std::cout << "[OK] LOD: Temporal slicing (4 regions, viewport priority)" << std::endl;
-
+  
+  // Initialize Chunk-based World System (for massive worlds)
+  world::TerrainConfig terrain_config;
+  terrain_config.seed = 42;
+  terrain_config.terrain_scale = 0.02;
+  terrain_config.height_amplitude = 30.0;
+  world::TerrainGenerator terrain_gen(terrain_config);
+  
+  world::ChunkManagerConfig chunk_config;
+  chunk_config.load_radius = 3;    // Load 3 chunks around camera (7x7x3 = 147 chunks)
+  chunk_config.unload_radius = 5;
+  chunk_config.max_loaded = 200;
+  world::ChunkManager chunk_manager(chunk_config);
+  
+  // Wire terrain generator into chunk manager
+  chunk_manager.set_terrain_generator([&terrain_gen](world::Chunk& chunk) {
+      terrain_gen.generate(chunk);
+  });
+  
+  // Pre-load chunks around origin
+  chunk_manager.update(100.0f, 100.0f, 0.0f);
+  std::cout << "[OK] World: ChunkManager initialized, " << chunk_manager.loaded_count() 
+            << " chunks loaded" << std::endl;
   std::cout << std::endl;
   std::cout << "=== Simulation Running ===" << std::endl;
   std::cout << "Controls:" << std::endl;
@@ -199,6 +223,9 @@ int main() {
         vp.y_min = std::max(0, cam_y - 50);
         vp.y_max = std::min(199, cam_y + 50);
         lod_manager.set_viewport(vp);
+        
+        // Update chunk loading based on camera (world coords)
+        chunk_manager.update(cam.target.x, cam.target.y, 0.0f);
       }
       
       // All physics systems run every step (GPU accelerated when available)
